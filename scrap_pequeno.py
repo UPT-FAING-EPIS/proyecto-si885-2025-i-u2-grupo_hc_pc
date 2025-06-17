@@ -47,31 +47,26 @@ def get_db_engine():
     engine = create_engine(conn_str, fast_executemany=True)
     return engine
 
-def clear_database_tables(engine):
-    """Elimina todos los datos de las tablas en el orden correcto para evitar problemas de FK."""
-    tables_to_clear = [
-        "ProyectoCICD", "ProyectoBasesDeDatos", "ProyectoLibrerias", "ProyectoFrameworks",
-        "Commits", "Issues", "ColaboradoresPorProyecto", "Proyectos", "Usuarios", "Cursos"
-    ]
+def create_database_schema(engine):
+    """Ejecuta el script schema.sql para crear la estructura de la base de datos."""
+    schema_path = 'sql/schema.sql'
+    if not os.path.exists(schema_path):
+        raise FileNotFoundError(f"No se encontró el archivo de esquema en {schema_path}")
+
+    with open(schema_path, 'r', encoding='utf-8') as f:
+        # Dividir el script en sentencias individuales usando 'GO' como delimitador
+        sql_commands = f.read().split('GO\n')
+
     with engine.connect() as connection:
         transaction = connection.begin()
         try:
-            # Deshabilitar constraints para TRUNCATE
-            for table in tables_to_clear:
-                connection.execute(sqlalchemy.text(f'ALTER TABLE {table} NOCHECK CONSTRAINT ALL'))
-            
-            for table in tables_to_clear:
-                print(f"Limpiando tabla {table}...")
-                connection.execute(sqlalchemy.text(f'TRUNCATE TABLE {table}'))
-
-            # Habilitar constraints de nuevo
-            for table in tables_to_clear:
-                connection.execute(sqlalchemy.text(f'ALTER TABLE {table} WITH CHECK CHECK CONSTRAINT ALL'))
-
+            for command in sql_commands:
+                if command.strip():
+                    connection.execute(sqlalchemy.text(command))
             transaction.commit()
-            print("Todas las tablas han sido limpiadas exitosamente.")
+            print("Esquema de la base de datos creado exitosamente.")
         except Exception as e:
-            print(f"Error durante la limpieza de tablas: {e}")
+            print(f"Error al ejecutar el script de esquema: {e}")
             transaction.rollback()
             raise
 
@@ -528,8 +523,8 @@ if __name__ == '__main__':
             db_engine = get_db_engine()
             print("Conexión a la base de datos establecida.")
             
-            print("Limpiando la base de datos...")
-            clear_database_tables(db_engine)
+            print("Creando esquema de la base de datos...")
+            create_database_schema(db_engine)
             
             print("Cargando nuevos datos a la base de datos...")
             load_data_to_db(db_engine, data_frames)
@@ -541,6 +536,11 @@ if __name__ == '__main__':
     else:
         print("No hay repositorios para analizar después de aplicar el límite.")
 
+# --- Notas ---
+# 1. Asegúrate de tener los permisos necesarios en tu token de GitHub.
+# 2. El script ahora depende de la variable de entorno STORAGE_CONNECTION_STRING.
+# 3. Las tablas en Azure se crearán automáticamente si no existen.
+# 4. El workflow de GitHub Actions se encargará de la ejecución periódica.
 # --- Notas ---
 # 1. Asegúrate de tener los permisos necesarios en tu token de GitHub.
 # 2. El script ahora depende de la variable de entorno STORAGE_CONNECTION_STRING.

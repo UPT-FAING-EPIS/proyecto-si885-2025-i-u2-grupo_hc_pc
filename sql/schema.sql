@@ -39,17 +39,17 @@ CREATE TABLE Proyectos (
     URLRepositorio NVARCHAR(2048),
     FechaCreacion DATETIME2,
     FechaUltimaActualizacion DATETIME2,
-    FechaUltimaActividad DATETIME2,
     LenguajePrincipal NVARCHAR(100),
     Stars INT,
     Forks INT,
     OpenIssues INT,
+    FechaUltimaActividad DATETIME2 NULL,
     FOREIGN KEY (CursoID) REFERENCES Cursos(CursoID)
 );
 
 CREATE TABLE ColaboradoresPorProyecto (
-    ProyectoID BIGINT,
-    UsuarioID NVARCHAR(255),
+    ProyectoID BIGINT NOT NULL,
+    UsuarioID NVARCHAR(255) NOT NULL,
     PRIMARY KEY (ProyectoID, UsuarioID),
     FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID),
     FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID)
@@ -65,7 +65,7 @@ CREATE TABLE Issues (
     AsignadoID NVARCHAR(255),
     FechaCreacion DATETIME2,
     FechaActualizacion DATETIME2,
-    FechaCierre DATETIME2,
+    FechaCierre DATETIME2 NULL,
     URLIssue NVARCHAR(2048),
     Comentarios INT,
     FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID),
@@ -97,7 +97,7 @@ CREATE TABLE ProyectoLibrerias (
     ProyectoID BIGINT,
     Libreria NVARCHAR(100),
     LenguajeContexto NVARCHAR(100),
-    PRIMARY KEY (ProyectoID, Libreria),
+    PRIMARY KEY (ProyectoID, Libreria, LenguajeContexto),
     FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID)
 );
 
