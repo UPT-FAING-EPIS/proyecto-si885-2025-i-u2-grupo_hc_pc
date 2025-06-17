@@ -7,7 +7,7 @@ variable "location" {
 variable "resource_group_name" {
   description = "The name of the resource group."
   type        = string
-  default     = "rg-si885-project-final"
+  default     = "rg-si885-project-deploy"
 }
 
 variable "sql_server_name" {
