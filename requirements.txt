@@ -1,5 +1,5 @@
-requests
 pandas
+requests
 beautifulsoup4
-sqlalchemy
+azure-data-tables
 pyodbc

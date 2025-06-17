@@ -7,9 +7,8 @@ import time
 import re # Importar re para expresiones regulares
 from datetime import datetime
 import os
-import sqlalchemy
-from sqlalchemy import create_engine
-import urllib
+from azure.data.tables import TableServiceClient
+from azure.core.exceptions import ResourceExistsError
 
 # Configuración
 ORG_NAME = "UPT-FAING-EPIS"
@@ -22,59 +21,76 @@ REQUEST_TIMEOUT = 15 # Timeout para las peticiones en segundos
 
 # EXCEL_FILE_NAME = 'analisis_repositorios_pequeno.xlsx' # <--- Ya no se usa
 
-def get_db_engine():
-    """Crea y retorna un engine de SQLAlchemy para la base de datos Azure SQL."""
-    db_server = os.getenv("DB_SERVER")
-    db_database = os.getenv("DB_DATABASE")
-    db_username = os.getenv("DB_USERNAME")
-    db_password = os.getenv("DB_PASSWORD")
-    
-    if not all([db_server, db_database, db_username, db_password, GITHUB_TOKEN]):
-        raise ValueError("Una o más variables de entorno requeridas no están configuradas (GITHUB_TOKEN, DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD)")
+def get_table_service_client():
+    """Crea y retorna un cliente para el servicio de Azure Table Storage."""
+    connection_string = os.getenv("STORAGE_CONNECTION_STRING")
+    if not GITHUB_TOKEN or not connection_string:
+        raise ValueError("Las variables de entorno GITHUB_TOKEN y STORAGE_CONNECTION_STRING son requeridas.")
+    return TableServiceClient.from_connection_string(conn_str=connection_string)
 
-    driver = '{ODBC Driver 17 for SQL Server}'
-    params = urllib.parse.quote_plus(
-        f"DRIVER={driver};"
-        f"SERVER=tcp:{db_server},1433;"
-        f"DATABASE={db_database};"
-        f"UID={db_username};"
-        f"PWD={db_password};"
-        f"Encrypt=yes;"
-        f"TrustServerCertificate=no;"
-        "Connection Timeout=30;"
-    )
-    
-    conn_str = f"mssql+pyodbc:///?odbc_connect={params}"
-    engine = create_engine(conn_str, fast_executemany=True)
-    return engine
-
-def clear_database_tables(engine):
-    """Elimina todos los datos de las tablas en el orden correcto para evitar problemas de FK."""
-    tables_to_clear = [
-        "ProyectoCICD", "ProyectoBasesDeDatos", "ProyectoLibrerias", "ProyectoFrameworks",
-        "Commits", "Issues", "ColaboradoresPorProyecto", "Proyectos", "Usuarios", "Cursos"
-    ]
-    with engine.connect() as connection:
-        transaction = connection.begin()
+def clear_all_tables(table_service_client, table_names):
+    """Elimina y recrea todas las tablas especificadas para asegurar un estado limpio."""
+    for table_name in table_names:
         try:
-            for table in tables_to_clear:
-                print(f"Limpiando tabla {table}...")
-                connection.execute(sqlalchemy.text(f'TRUNCATE TABLE {table}'))
-            transaction.commit()
-            print("Todas las tablas han sido limpiadas exitosamente.")
-        except Exception: # Si TRUNCATE falla por FKs, usar DELETE
-            transaction.rollback()
-            transaction = connection.begin()
-            print("TRUNCATE falló, intentando con DELETE.")
-            for table in tables_to_clear:
-                print(f"Limpiando tabla {table} con DELETE...")
-                connection.execute(sqlalchemy.text(f'DELETE FROM {table}'))
-            transaction.commit()
-            print("Todas las tablas han sido limpiadas con DELETE.")
+            print(f"Limpiando tabla {table_name}...")
+            table_service_client.delete_table(table_name)
+            print(f"Tabla {table_name} eliminada.")
+        except Exception:
+            print(f"La tabla {table_name} no existía, se creará una nueva.")
+        
+        try:
+            table_service_client.create_table(table_name)
+            print(f"Tabla {table_name} creada/recreada.")
+        except ResourceExistsError:
+            print(f"La tabla {table_name} ya existe (creada por otro proceso).")
+        except Exception as e:
+            print(f"Error al crear la tabla {table_name}: {e}")
 
+def get_entity_keys(table_name, row):
+    """Genera PartitionKey y RowKey para una fila de un DataFrame, asegurando que sean strings y válidos."""
+    if table_name == "Cursos":
+        pk = str(row.get("NombreCurso", "default_curso"))
+        rk = str(row.get("CursoID", "default_id"))
+    elif table_name == "Usuarios":
+        pk = str(row.get("TipoUsuario", "default_tipo"))
+        rk = str(row.get("UsuarioID", "default_id"))
+    elif table_name == "Proyectos":
+        pk = str(row.get("CursoID", "default_curso"))
+        rk = str(row.get("ProyectoID", "default_id"))
+    elif table_name == "ColaboradoresPorProyecto":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("UsuarioID"))
+    elif table_name == "Issues":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("IssueID"))
+    elif table_name == "Commits":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("CommitSHA"))
+    elif table_name == "ProyectoFrameworks":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("Framework"))
+    elif table_name == "ProyectoLibrerias":
+        pk = str(row.get("ProyectoID"))
+        rk = f'{row.get("Libreria")}_{row.get("LenguajeContexto")}'
 
-def load_data_to_db(engine, data_frames):
-    """Carga los DataFrames en la base de datos en el orden correcto."""
+    elif table_name == "ProyectoBasesDeDatos":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("BaseDeDatos"))
+    elif table_name == "ProyectoCICD":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("HerramientaCI_CD"))
+    else:
+        pk = "default_partition"
+        rk = str(row.name)
+    
+    invalid_chars = r'[\#\?\/]'
+    pk = re.sub(invalid_chars, '-', pk)
+    rk = re.sub(invalid_chars, '-', rk)
+    
+    return pk, rk
+
+def load_data_to_azure_tables(table_service_client, data_frames):
+    """Carga los DataFrames en Azure Table Storage."""
     load_order = [
         ("Cursos", data_frames["cursos"]),
         ("Usuarios", data_frames["usuarios"]),
@@ -88,18 +104,32 @@ def load_data_to_db(engine, data_frames):
         ("ProyectoCICD", data_frames["proyecto_cicd"]),
     ]
 
-    with engine.connect() as connection:
-        for name, df in load_order:
-            if df.empty:
-                print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
-                continue
-            print(f"Cargando {len(df)} filas en la tabla {name}...")
+    for name, df in load_order:
+        if df.empty:
+            print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
+            continue
+        
+        print(f"Cargando {len(df)} filas en la tabla {name}...")
+        table_client = table_service_client.get_table_client(table_name=name)
+        
+        for _, row in df.iterrows():
+            partition_key, row_key = get_entity_keys(name, row)
+            entity = {'PartitionKey': partition_key, 'RowKey': row_key}
+            
+            for col, value in row.items():
+                if pd.isna(value):
+                    entity[col] = None
+                elif isinstance(value, (datetime, pd.Timestamp)):
+                    entity[col] = value
+                else:
+                    entity[col] = str(value)
+            
             try:
-                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200)
-                print(f"  Carga para {name} completada.")
+                table_client.upsert_entity(entity=entity)
             except Exception as e:
-                print(f"Error al cargar datos en la tabla {name}: {e}")
-                raise
+                print(f"  Error al cargar la entidad {row_key} en {name}: {e}")
+        
+        print(f"  Carga para {name} completada.")
 
 def get_paginated_data(url, params=None, max_retries=3, backoff_factor=0.3):
     """Obtener datos paginados de la API de GitHub con reintentos."""
@@ -480,14 +510,20 @@ if __name__ == '__main__':
     if repos_to_analyze:
         data_frames = analyze_repositories_detailed_and_tech(repos_to_analyze)
         try:
-            db_engine = get_db_engine()
-            print("Conexión a la base de datos establecida.")
+            table_service_client = get_table_service_client()
+            print("Cliente de Azure Table Storage obtenido.")
             
-            print("Limpiando la base de datos...")
-            clear_database_tables(db_engine)
+            table_names = [
+                "Cursos", "Usuarios", "Proyectos", "ColaboradoresPorProyecto", "Issues", 
+                "Commits", "ProyectoFrameworks", "ProyectoLibrerias", 
+                "ProyectoBasesDeDatos", "ProyectoCICD"
+            ]
             
-            print("Cargando nuevos datos a la base de datos...")
-            load_data_to_db(db_engine, data_frames)
+            print("Limpiando tablas en Azure...")
+            clear_all_tables(table_service_client, table_names)
+            
+            print("Cargando nuevos datos a Azure Table Storage...")
+            load_data_to_azure_tables(table_service_client, data_frames)
             
             print("Proceso ETL completado exitosamente.")
         except Exception as e:
@@ -497,6 +533,6 @@ if __name__ == '__main__':
 
 # --- Notas ---
 # 1. Asegúrate de tener los permisos necesarios en tu token de GitHub.
-# 2. El script ahora depende de variables de entorno para la conexión a la BD.
-# 3. El esquema de la BD debe ser creado antes de ejecutar este script por primera vez.
+# 2. El script ahora depende de la variable de entorno STORAGE_CONNECTION_STRING.
+# 3. Las tablas en Azure se crearán automáticamente si no existen.
 # 4. El workflow de GitHub Actions se encargará de la ejecución periódica.

@@ -26,7 +26,7 @@ Integrantes:
 </center>
 <div style="page-break-after: always; visibility: hidden">\pagebreak</div>
 
-**Sistema *Análisis del Uso de Herramientas Tecnológicas en los proyectos de Estudiantes Sistemas UPT***
+**Sistema *Análisis del Uso de Herramientas Tecnológicas en los proyectos de Estudiantes de Sistemas UPT***
 
 **Informe de Factibilidad**
 
@@ -106,7 +106,7 @@ Los estudiantes de la Universidad Privada de Tacna enfrentan dificultades para u
 
 ### 3.2. Consideraciones de hardware y software
 - **Hardware**: La universidad dispone de equipos adecuados para el uso de las herramientas tecnológicas en los proyectos académicos. Sin embargo, algunos estudiantes enfrentan dificultades para acceder a estos recursos fuera de las instalaciones universitarias.
-- **Software**: Los estudiantes utilizan una variedad de lenguajes de programación, frameworks, librerías y bases de datos. Sin embargo, la falta de conocimiento sobre cuál herramienta elegir para cada tipo de proyecto puede reducir la eficiencia.
+- **Software**: Los estudiantes utilizan una variedad de lenguajes de programación, frameworks, librerías y bases de datos. Sin embargo, la falta de conocimiento sobre cuál herramienta elegir para cada tipo de proyecto puede reducir la eficiencia. Se utilizará **Azure Table Storage** como base de datos NoSQL en la nube.
 
 <div style="page-break-after: always; visibility: hidden">\pagebreak</div>
 
@@ -116,7 +116,7 @@ El estudio de factibilidad tiene como objetivo evaluar la viabilidad del proyect
 ## **4.1 Factibilidad Técnica**
 El proyecto es técnicamente viable debido a que:
 - **Hardware disponible**: La UPT cuenta con equipos informáticos suficientes.
-- **Software requerido**: Se utilizarán herramientas de código abierto y gratuitas.
+- **Software requerido**: Se utilizarán herramientas de código abierto y gratuitas, con **Azure Table Storage** como solución de base de datos, la cual es un servicio fundamental y sin restricciones de Azure.
 - **Infraestructura de red**: La universidad dispone de conexión a Internet estable.
 - **Recursos humanos**: El equipo cuenta con conocimientos en programación y análisis de datos.
 
@@ -142,8 +142,8 @@ Se estiman los siguientes costos:
 | Descripción            | Costo Estimado (S/) |
 |------------------------|---------------------|
 | Dominio web (opcional) | 100                 |
-| Servidor cloud (opcional)| 200               |
-| **Total**              | **300**             |
+| Servidor cloud (Azure Storage)| 20 (prácticamente gratis a esta escala) |
+| **Total**              | **120**             |
 
 ### Costos de personal
 | Rol               | Horas estimadas | Tarifa (S/ hora) | Costo Total (S/) |
@@ -158,9 +158,9 @@ Se estiman los siguientes costos:
 |------------------------|---------------------|
 | Costos generales       | 350                 |
 | Costos operativos      | 300                 |
-| Costos del ambiente    | 300                 |
+| Costos del ambiente    | 120                 |
 | Costos de personal     | 4,300               |
-| **Total**              | **5,250**           |
+| **Total**              | **5,070**           |
 
 
 ## Fuentes de Financiamiento (Ingresos)
@@ -176,11 +176,11 @@ Se estiman los siguientes costos:
 | Mes       | Ingresos | Egresos  | Flujo Neto | Acumulado |
 |-----------|----------|----------|------------|-----------|
 | **Mes 1** | 1,500    | 1,200    | 300        | 300       |
-| **Mes 2** | 1,500    | 1,050    | 450        | 750       |
-| **Mes 3** | 1,500    | 1,050    | 450        | 1,200     |
-| **Mes 4** | 1,500    | 1,050    | 450        | 1,650     |
-| **Mes 5** | -        | 900      | (900)      | **750**   |
-| **Total** | **6,000**| **5,250**| **750**    |           |
+| **Mes 2** | 1,500    | 1,000    | 500        | 800       |
+| **Mes 3** | 1,500    | 1,000    | 500        | 1,300     |
+| **Mes 4** | 1,500    | 1,000    | 500        | 1,800     |
+| **Mes 5** | -        | 870      | (870)      | **930**   |
+| **Total** | **6,000**| **5,070**| **930**    |           |
 
 ## **4.3 Factibilidad Operativa**
 El proyecto es operativamente viable porque:
@@ -235,4 +235,4 @@ Interpretación: Proyecto rentable
 <div style="page-break-after: always; visibility: hidden">\pagebreak</div>
 
 # **6. Conclusiones**
-El proyecto "Análisis del Uso de Herramientas Tecnológicas en los Proyectos de Estudiantes de Sistemas UPT" es completamente viable. La universidad ya cuenta con la infraestructura tecnológica y el personal capacitado para ejecutarlo sin dificultades. Técnicamente, se pueden utilizar herramientas disponibles y de código abierto. Operativamente, beneficiará directamente a estudiantes y docentes. No presenta obstáculos legales ni ambientales, y su impacto social será positivo. Por todas estas razones, el proyecto es factible y aportará un valor significativo a la formación de los estudiantes.
+El proyecto "Análisis del Uso de Herramientas Tecnológicas en los Proyectos de Estudiantes de Sistemas UPT" es completamente viable. Tras encontrar bloqueos persistentes en la creación de recursos de Azure SQL, se ha pivotado la arquitectura hacia **Azure Table Storage**, una solución NoSQL robusta, económica y sin las restricciones de aprovisionamiento encontradas. Este cambio no solo resuelve el problema técnico, sino que simplifica la infraestructura y reduce los costos operativos. La universidad cuenta con los recursos necesarios y el proyecto es factible en todos los demás aspectos (operativo, legal, social, ambiental). Se recomienda proceder con esta nueva arquitectura.
