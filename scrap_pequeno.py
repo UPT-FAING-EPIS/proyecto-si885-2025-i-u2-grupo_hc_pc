@@ -557,3 +557,4 @@ if __name__ == '__main__':
 # 2. El script ahora depende de la variable de entorno STORAGE_CONNECTION_STRING.
 # 3. Las tablas en Azure se crearán automáticamente si no existen.
 # 4. El workflow de GitHub Actions se encargará de la ejecución periódica.
+
