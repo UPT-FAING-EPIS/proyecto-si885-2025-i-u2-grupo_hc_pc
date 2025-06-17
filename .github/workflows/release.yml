@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.0.6 # Usando versión específica
         with:
           name: "Release ${{ github.ref_name }}"
           generate_release_notes: true
