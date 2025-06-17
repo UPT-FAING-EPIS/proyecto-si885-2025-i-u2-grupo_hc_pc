@@ -493,6 +493,17 @@ def analyze_repositories_detailed_and_tech(repos):
     df_proyecto_db = pd.DataFrame(proyecto_db_data)
     df_proyecto_cicd = pd.DataFrame(proyecto_cicd_data)
 
+    # Convertir columnas de fecha a objetos datetime para asegurar la compatibilidad con SQL Server
+    df_proyectos['FechaCreacion'] = pd.to_datetime(df_proyectos['FechaCreacion'], errors='coerce')
+    df_proyectos['FechaUltimaActualizacion'] = pd.to_datetime(df_proyectos['FechaUltimaActualizacion'], errors='coerce')
+    df_proyectos['FechaUltimaActividad'] = pd.to_datetime(df_proyectos['FechaUltimaActividad'], errors='coerce')
+
+    df_issues['FechaCreacion'] = pd.to_datetime(df_issues['FechaCreacion'], errors='coerce')
+    df_issues['FechaActualizacion'] = pd.to_datetime(df_issues['FechaActualizacion'], errors='coerce')
+    df_issues['FechaCierre'] = pd.to_datetime(df_issues['FechaCierre'], errors='coerce')
+
+    df_commits['FechaCommit'] = pd.to_datetime(df_commits['FechaCommit'], errors='coerce')
+
     # Se eliminan los dataframes de estadísticas y la escritura a Excel
     
     return {
