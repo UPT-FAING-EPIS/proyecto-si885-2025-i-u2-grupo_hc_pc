@@ -30,7 +30,7 @@ def get_db_engine():
     if not all([db_server, db_database, db_username, db_password, GITHUB_TOKEN]):
         raise ValueError("Una o más variables de entorno requeridas no están configuradas (GITHUB_TOKEN, DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD)")
 
-    driver = '{ODBC Driver 17 for SQL Server}'
+    driver = '{ODBC Driver 18 for SQL Server}'
     params = urllib.parse.quote_plus(
         f"DRIVER={driver};"
         f"SERVER=tcp:{db_server},1433;"
