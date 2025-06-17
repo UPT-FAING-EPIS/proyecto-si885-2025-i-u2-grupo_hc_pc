@@ -70,8 +70,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y unixodbc-dev
-        # Modern way to add Microsoft's key
-        curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+        # Modern way to add Microsoft's key, running in non-interactive mode
+        curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
         # Add the repository for the current Ubuntu version
         curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
         sudo apt-get update
