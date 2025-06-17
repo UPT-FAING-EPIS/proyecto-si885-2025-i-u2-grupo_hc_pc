@@ -37,5 +37,5 @@ variable "sql_admin_password" {
 variable "powerbi_client_ip" {
   description = "The public IP address of the client machine running Power BI."
   type        = string
-  default     = "0.0.0.0" # Reemplaza esto con tu IP pública
+  default     = "179.6.56.63"
 }
