@@ -18,41 +18,42 @@ DROP TABLE IF EXISTS Cursos;
 
 -- Creación de Tablas
 CREATE TABLE Cursos (
-    CursoID NVARCHAR(255) PRIMARY KEY,
-    NombreCurso NVARCHAR(255) NOT NULL,
+    CursoID NVARCHAR(100) PRIMARY KEY,
+    NombreCurso NVARCHAR(255),
     Unidad NVARCHAR(50)
 );
 
 CREATE TABLE Usuarios (
     UsuarioID NVARCHAR(255) PRIMARY KEY,
     NombreUsuario NVARCHAR(255),
-    URLPerfil NVARCHAR(2048),
+    URLPerfil NVARCHAR(1024),
     TipoUsuario NVARCHAR(100)
 );
 
 CREATE TABLE Proyectos (
     ProyectoID BIGINT PRIMARY KEY,
-    NombreProyecto NVARCHAR(255) NOT NULL,
-    RepoFullName NVARCHAR(512) UNIQUE NOT NULL,
-    CursoID NVARCHAR(255),
+    NombreProyecto NVARCHAR(255),
+    RepoFullName NVARCHAR(512),
+    CursoID NVARCHAR(100) NULL,
     Descripcion NVARCHAR(MAX),
-    URLRepositorio NVARCHAR(2048),
-    FechaCreacion DATETIME2,
-    FechaUltimaActualizacion DATETIME2,
+    URLRepositorio NVARCHAR(1024),
+    FechaCreacion DATETIME,
+    FechaUltimaActualizacion DATETIME,
     LenguajePrincipal NVARCHAR(100),
     Stars INT,
     Forks INT,
     OpenIssues INT,
-    FechaUltimaActividad DATETIME2 NULL,
-    FOREIGN KEY (CursoID) REFERENCES Cursos(CursoID)
+    FechaUltimaActividad DATETIME NULL
 );
+
+ALTER TABLE Proyectos ADD CONSTRAINT FK_Proyectos_Cursos FOREIGN KEY (CursoID) REFERENCES Cursos(CursoID);
 
 CREATE TABLE ColaboradoresPorProyecto (
     ProyectoID BIGINT NOT NULL,
     UsuarioID NVARCHAR(255) NOT NULL,
     PRIMARY KEY (ProyectoID, UsuarioID),
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID),
-    FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID)
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE,
+    FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID) ON DELETE CASCADE
 );
 
 CREATE TABLE Issues (
@@ -63,14 +64,12 @@ CREATE TABLE Issues (
     Estado NVARCHAR(50),
     CreadorID NVARCHAR(255),
     AsignadoID NVARCHAR(255),
-    FechaCreacion DATETIME2,
-    FechaActualizacion DATETIME2,
-    FechaCierre DATETIME2 NULL,
-    URLIssue NVARCHAR(2048),
+    FechaCreacion DATETIME,
+    FechaActualizacion DATETIME,
+    FechaCierre DATETIME NULL,
+    URLIssue NVARCHAR(1024),
     Comentarios INT,
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID),
-    FOREIGN KEY (CreadorID) REFERENCES Usuarios(UsuarioID),
-    FOREIGN KEY (AsignadoID) REFERENCES Usuarios(UsuarioID)
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 
 CREATE TABLE Commits (
@@ -79,18 +78,16 @@ CREATE TABLE Commits (
     AutorID NVARCHAR(255),
     CommitterID NVARCHAR(255),
     Mensaje NVARCHAR(MAX),
-    FechaCommit DATETIME2,
-    URLCommit NVARCHAR(2048),
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID),
-    FOREIGN KEY (AutorID) REFERENCES Usuarios(UsuarioID),
-    FOREIGN KEY (CommitterID) REFERENCES Usuarios(UsuarioID)
+    FechaCommit DATETIME,
+    URLCommit NVARCHAR(1024),
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 
 CREATE TABLE ProyectoFrameworks (
     ProyectoID BIGINT,
     Framework NVARCHAR(100),
     PRIMARY KEY (ProyectoID, Framework),
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID)
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 
 CREATE TABLE ProyectoLibrerias (
@@ -98,21 +95,21 @@ CREATE TABLE ProyectoLibrerias (
     Libreria NVARCHAR(100),
     LenguajeContexto NVARCHAR(100),
     PRIMARY KEY (ProyectoID, Libreria, LenguajeContexto),
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID)
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 
 CREATE TABLE ProyectoBasesDeDatos (
     ProyectoID BIGINT,
     BaseDeDatos NVARCHAR(100),
     PRIMARY KEY (ProyectoID, BaseDeDatos),
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID)
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 
 CREATE TABLE ProyectoCICD (
     ProyectoID BIGINT,
     HerramientaCI_CD NVARCHAR(100),
     PRIMARY KEY (ProyectoID, HerramientaCI_CD),
-    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID)
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 GO
 
@@ -129,6 +126,9 @@ CREATE VIEW V_EstadisticasBasesDeDatos AS
 SELECT BaseDeDatos, COUNT(ProyectoID) AS Cantidad FROM ProyectoBasesDeDatos GROUP BY BaseDeDatos;
 GO
 
+CREATE VIEW V_EstadisticasCICD AS
+SELECT HerramientaCI_CD, COUNT(ProyectoID) AS Cantidad FROM ProyectoCICD GROUP BY HerramientaCI_CD;
+GO
 CREATE VIEW V_EstadisticasCICD AS
 SELECT HerramientaCI_CD, COUNT(ProyectoID) AS Cantidad FROM ProyectoCICD GROUP BY HerramientaCI_CD;
 GO

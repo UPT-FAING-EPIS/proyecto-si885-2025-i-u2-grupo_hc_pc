@@ -235,4 +235,9 @@ Interpretación: Proyecto rentable
 <div style="page-break-after: always; visibility: hidden">\pagebreak</div>
 
 # **6. Conclusiones**
-El proyecto "Análisis del Uso de Herramientas Tecnológicas en los Proyectos de Estudiantes de Sistemas UPT" es completamente viable. Durante el desarrollo del pipeline de despliegue, se encontraron y resolvieron dificultades técnicas relacionadas con la creación de recursos en Azure, como la gestión de contraseñas y la unicidad de los nombres de los recursos. El diseño final con **Azure SQL** es técnicamente sólido y se ha implementado con éxito. La universidad cuenta con los recursos necesarios y el proyecto es factible en todos los demás aspectos.
+El proyecto "Análisis del Uso de Herramientas Tecnológicas en los Proyectos de Estudiantes de Sistemas UPT" es completamente viable. Durante el desarrollo del pipeline de despliegue y ETL, se encontraron y resolvieron dificultades técnicas clave:
+
+1.  **Creación de Recursos en Azure**: Se superaron problemas relacionados con la política de complejidad de contraseñas de Azure SQL y la necesidad de garantizar nombres de recursos únicos en cada despliegue, lo cual se solucionó ajustando la configuración de Terraform.
+2.  **Compatibilidad de Tipos de Datos**: Se presentaron errores de truncamiento de datos al cargar la información en la base de datos. Esto se resolvió ajustando el esquema de Azure SQL para usar tipos de datos `NVARCHAR` con longitudes adecuadas, asegurando la compatibilidad con los datos extraídos de la API de GitHub a través de Python.
+
+El diseño final, que utiliza un pipeline automatizado con Terraform, GitHub Actions y Python, es técnicamente sólido y se ha implementado con éxito. La universidad cuenta con los recursos necesarios y el proyecto es factible en todos sus aspectos.
