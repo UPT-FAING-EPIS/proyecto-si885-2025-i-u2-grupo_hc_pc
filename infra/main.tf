@@ -34,6 +34,19 @@ resource "azurerm_storage_table" "table" {
   name                 = var.storage_table_name
   storage_account_name = azurerm_storage_account.storage.name
 }
+
+# SQL Server resources (added missing parts)
+resource "azurerm_mssql_server" "sqlserver" {
+  name                         = "${var.sql_server_name}${random_string.suffix.result}"
+  resource_group_name          = azurerm_resource_group.rg.name
+  location                     = azurerm_resource_group.rg.location
+  version                      = "12.0"
+  administrator_login          = var.sql_admin_username
+  administrator_login_password = var.sql_admin_password
+}
+
+resource "azurerm_mssql_firewall_rule" "powerbi_rule" {
+  name             = "AllowPowerBI"
   server_id        = azurerm_mssql_server.sqlserver.id
   start_ip_address = var.powerbi_client_ip
   end_ip_address   = var.powerbi_client_ip
