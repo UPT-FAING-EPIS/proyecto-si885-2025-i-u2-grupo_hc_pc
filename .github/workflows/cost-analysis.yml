@@ -1,0 +1,58 @@
+name: Infrastructure Cost Analysis
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+
+jobs:
+  infracost:
+    name: Run Infracost
+    runs-on: ubuntu-latest
+    env:
+      # La contraseña es necesaria para el plan, pero no se usa para el costo
+      TF_VAR_sql_admin_password: ${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
+    
+    defaults:
+      run:
+        working-directory: ./infra
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 'Login to Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Infracost Breakdown
+        run: infracost breakdown --path . --format json --out-file /tmp/infracost.json
+
+      - name: Post Infracost Comment
+        if: github.event_name == 'pull_request'
+        uses: infracost/actions/comment@v3
+        with:
+          path: /tmp/infracost.json
+          behavior: update

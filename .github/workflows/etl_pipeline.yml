@@ -18,6 +18,11 @@ jobs:
       run:
         working-directory: ./infra
 
+    outputs:
+      db_server: ${{ steps.get_outputs.outputs.db_server }}
+      db_database: ${{ steps.get_outputs.outputs.db_database }}
+      db_username: ${{ steps.get_outputs.outputs.db_username }}
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -38,6 +43,13 @@ jobs:
 
     - name: Terraform Apply
       run: terraform apply -auto-approve tfplan
+
+    - name: Get Terraform Outputs
+      id: get_outputs
+      run: |
+        echo "db_server=$(terraform output -raw sql_server_fqdn)" >> $GITHUB_OUTPUT
+        echo "db_database=$(terraform output -raw sql_database_name)" >> $GITHUB_OUTPUT
+        echo "db_username=$(terraform output -raw sql_admin_login)" >> $GITHUB_OUTPUT
 
   run-etl:
     name: 'Run Python ETL Script'
@@ -70,8 +82,8 @@ jobs:
     - name: Run ETL script
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        DB_SERVER: "sql-si885-github-analytics.database.windows.net"
-        DB_DATABASE: "db-github-analytics"
-        DB_USERNAME: "sqladmin"
+        DB_SERVER: ${{ needs.terraform-deploy.outputs.db_server }}
+        DB_DATABASE: ${{ needs.terraform-deploy.outputs.db_database }}
+        DB_USERNAME: ${{ needs.terraform-deploy.outputs.db_username }}
         DB_PASSWORD: ${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
       run: python ./scrap_pequeno.py
