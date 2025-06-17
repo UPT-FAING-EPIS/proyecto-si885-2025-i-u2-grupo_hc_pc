@@ -119,6 +119,7 @@ El proyecto es técnicamente viable debido a que:
 - **Software requerido**: Se utilizarán herramientas de código abierto y gratuitas, con **Azure SQL Database** como solución de base de datos.
 - **Infraestructura de red**: La universidad dispone de conexión a Internet estable.
 - **Recursos humanos**: El equipo cuenta con conocimientos en programación y análisis de datos.
+- **Diseño de Pipeline Robusto**: El pipeline de ETL está diseñado para ser idempotente. Esto se logra mediante un script SQL que primero elimina y luego recrea la estructura completa de la base de datos (tablas y vistas), asegurando un estado limpio y consistente en cada ejecución.
 
 ## **4.2 Factibilidad económica**
 Se estiman los siguientes costos:

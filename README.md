@@ -26,14 +26,12 @@
 
 ## Requerimientos Funcionales
 
-| ID    | Requerimiento                                                                                             |
-|-------|-----------------------------------------------------------------------------------------------------------|
-| RF-01 | El sistema debe poder extraer datos de los repositorios de la organización `UPT-FAING-EPIS` en GitHub.      |
-| RF-02 | El sistema debe identificar y cuantificar los lenguajes de programación utilizados en cada proyecto.       |
-| RF-03 | El sistema debe detectar el uso de frameworks, librerías y bases de datos a partir del `README.md`.        |
-| RF-04 | El sistema debe almacenar los datos extraídos y procesados en una base de datos Azure SQL.                |
-| RF-05 | El proceso ETL completo debe ser automatizado y poder ejecutarse de forma programada (semanalmente).      |
-| RF-06 | La infraestructura en la nube debe crearse y configurarse automáticamente.                                |
+| ID | Descripción | Prioridad |
+|----|-------------|-----------|
+| RF01 | Extraer metadatos de repositorios Git | Crítica |
+| RF02 | Clasificar lenguajes por proyecto | Alta |
+| RF03 | Generar reportes de frecuencia de tecnologías | Media |
+                        |
 
 ## Diagramas en Mermaid
 
@@ -62,27 +60,24 @@ graph TD
 ### Diagrama de Casos de Uso
 
 ```mermaid
-graph TD
-    subgraph "Sistema de Análisis Tecnológico"
-        UC1(Ejecutar Pipeline ETL)
-        UC2(Extraer Datos de Proyectos)
-        UC3(Analizar Tecnologías)
-        UC4(Almacenar Datos Procesados)
+flowchart TD
+    subgraph Sistema
+        UC1[Consultar estadísticas]
+        UC2[Exportar reportes]
+        UC3[Configurar sistema]
+        UC4[Autenticarse]
     end
 
-    actor "Desarrollador" as Dev
-    actor "Analista de BI" as Analyst
-    actor "Scheduler" as Clock
+    Estudiante --> UC1
+    Administrador --> UC2
+    Administrador --> UC3
+    UC1 -.-> UC4
+    UC2 -.-> UC4
+    UC3 -.-> UC4
 
-    Dev -- Activa --> UC1
-    Clock -- Activa --> UC1
-    UC1 -- include --> UC2
-    UC2 -- include --> UC3
-    UC3 -- include --> UC4
-    Analyst --|> User
-    Dev --|> User
-    UC4 -- Permite --> (Generar Reportes de BI)
-    Analyst -->(Generar Reportes de BI)
+    style Sistema fill:#f9f9f9,stroke:#333
+    linkStyle 0,1,2 stroke:#0074D9,stroke-width:2px
+    linkStyle 3,4,5 stroke:#FF851B,stroke-width:2px
 ```
 
 ### Diagrama de Secuencia
