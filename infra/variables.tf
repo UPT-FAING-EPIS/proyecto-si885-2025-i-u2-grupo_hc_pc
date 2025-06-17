@@ -7,7 +7,7 @@ variable "location" {
 variable "resource_group_name" {
   description = "The name of the resource group."
   type        = string
-  default     = "rg-upt-tech-analysis"
+  default     = "rg-upt-tech-analysis-v2"
 }
 
 variable "sql_server_name" {

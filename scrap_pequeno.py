@@ -47,24 +47,32 @@ def get_db_engine():
     return engine
 
 def clear_database_tables(engine):
-    """Elimina y recrea todas las tablas especificadas en la base de datos."""
-    table_names = ["Cursos", "Usuarios", "Proyectos", "ColaboradoresPorProyecto", "Issues", 
-                   "Commits", "ProyectoFrameworks", "ProyectoLibrerias", "ProyectoBasesDeDatos", "ProyectoCICD"]
-    
+    """Elimina todos los datos de las tablas en el orden correcto para evitar problemas de FK."""
+    tables_to_clear = [
+        "ProyectoCICD", "ProyectoBasesDeDatos", "ProyectoLibrerias", "ProyectoFrameworks",
+        "Commits", "Issues", "ColaboradoresPorProyecto", "Proyectos", "Usuarios", "Cursos"
+    ]
     with engine.connect() as connection:
-        for table_name in table_names:
-            try:
-                print(f"Limpiando tabla {table_name}...")
-                connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-                print(f"Tabla {table_name} eliminada.")
-            except Exception as e:
-                print(f"Error al eliminar la tabla {table_name}: {e}")
+        transaction = connection.begin()
+        try:
+            # Deshabilitar constraints para TRUNCATE
+            for table in tables_to_clear:
+                connection.execute(sqlalchemy.text(f'ALTER TABLE {table} NOCHECK CONSTRAINT ALL'))
             
-            try:
-                # La creación de tablas se maneja automáticamente en la carga de datos
-                print(f"Tabla {table_name} lista para nuevos datos.")
-            except Exception as e:
-                print(f"Error al preparar la tabla {table_name} para nuevos datos: {e}")
+            for table in tables_to_clear:
+                print(f"Limpiando tabla {table}...")
+                connection.execute(sqlalchemy.text(f'TRUNCATE TABLE {table}'))
+
+            # Habilitar constraints de nuevo
+            for table in tables_to_clear:
+                connection.execute(sqlalchemy.text(f'ALTER TABLE {table} WITH CHECK CHECK CONSTRAINT ALL'))
+
+            transaction.commit()
+            print("Todas las tablas han sido limpiadas exitosamente.")
+        except Exception as e:
+            print(f"Error durante la limpieza de tablas: {e}")
+            transaction.rollback()
+            raise
 
 def get_entity_keys(table_name, row):
     """Genera PartitionKey y RowKey para una fila de un DataFrame, asegurando que sean strings y válidos."""

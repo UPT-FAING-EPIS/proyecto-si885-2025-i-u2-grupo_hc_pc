@@ -106,7 +106,7 @@ Los estudiantes de la Universidad Privada de Tacna enfrentan dificultades para u
 
 ### 3.2. Consideraciones de hardware y software
 - **Hardware**: La universidad dispone de equipos adecuados para el uso de las herramientas tecnológicas en los proyectos académicos. Sin embargo, algunos estudiantes enfrentan dificultades para acceder a estos recursos fuera de las instalaciones universitarias.
-- **Software**: Los estudiantes utilizan una variedad de lenguajes de programación, frameworks, librerías y bases de datos. Sin embargo, la falta de conocimiento sobre cuál herramienta elegir para cada tipo de proyecto puede reducir la eficiencia. Se utilizará **Azure Table Storage** como base de datos NoSQL en la nube.
+- **Software**: Los estudiantes utilizan una variedad de lenguajes de programación, frameworks, librerías y bases de datos. Sin embargo, la falta de conocimiento sobre cuál herramienta elegir para cada tipo de proyecto puede reducir la eficiencia. Se utilizará **Azure SQL Database** como base de datos en la nube.
 
 <div style="page-break-after: always; visibility: hidden">\pagebreak</div>
 
@@ -116,7 +116,7 @@ El estudio de factibilidad tiene como objetivo evaluar la viabilidad del proyect
 ## **4.1 Factibilidad Técnica**
 El proyecto es técnicamente viable debido a que:
 - **Hardware disponible**: La UPT cuenta con equipos informáticos suficientes.
-- **Software requerido**: Se utilizarán herramientas de código abierto y gratuitas, con **Azure Table Storage** como solución de base de datos, la cual es un servicio fundamental y sin restricciones de Azure.
+- **Software requerido**: Se utilizarán herramientas de código abierto y gratuitas, con **Azure SQL Database** como solución de base de datos.
 - **Infraestructura de red**: La universidad dispone de conexión a Internet estable.
 - **Recursos humanos**: El equipo cuenta con conocimientos en programación y análisis de datos.
 
@@ -142,8 +142,8 @@ Se estiman los siguientes costos:
 | Descripción            | Costo Estimado (S/) |
 |------------------------|---------------------|
 | Dominio web (opcional) | 100                 |
-| Servidor cloud (Azure Storage)| 20 (prácticamente gratis a esta escala) |
-| **Total**              | **120**             |
+| Servidor cloud (Azure SQL)| 150               |
+| **Total**              | **250**             |
 
 ### Costos de personal
 | Rol               | Horas estimadas | Tarifa (S/ hora) | Costo Total (S/) |
@@ -158,9 +158,9 @@ Se estiman los siguientes costos:
 |------------------------|---------------------|
 | Costos generales       | 350                 |
 | Costos operativos      | 300                 |
-| Costos del ambiente    | 120                 |
+| Costos del ambiente    | 250                 |
 | Costos de personal     | 4,300               |
-| **Total**              | **5,070**           |
+| **Total**              | **5,200**           |
 
 
 ## Fuentes de Financiamiento (Ingresos)
@@ -176,11 +176,11 @@ Se estiman los siguientes costos:
 | Mes       | Ingresos | Egresos  | Flujo Neto | Acumulado |
 |-----------|----------|----------|------------|-----------|
 | **Mes 1** | 1,500    | 1,200    | 300        | 300       |
-| **Mes 2** | 1,500    | 1,000    | 500        | 800       |
-| **Mes 3** | 1,500    | 1,000    | 500        | 1,300     |
-| **Mes 4** | 1,500    | 1,000    | 500        | 1,800     |
-| **Mes 5** | -        | 870      | (870)      | **930**   |
-| **Total** | **6,000**| **5,070**| **930**    |           |
+| **Mes 2** | 1,500    | 1,050    | 450        | 750       |
+| **Mes 3** | 1,500    | 1,050    | 450        | 1,200     |
+| **Mes 4** | 1,500    | 1,050    | 450        | 1,650     |
+| **Mes 5** | -        | 850      | (850)      | **800**   |
+| **Total** | **6,000**| **5,200**| **800**    |           |
 
 ## **4.3 Factibilidad Operativa**
 El proyecto es operativamente viable porque:
@@ -235,4 +235,4 @@ Interpretación: Proyecto rentable
 <div style="page-break-after: always; visibility: hidden">\pagebreak</div>
 
 # **6. Conclusiones**
-El proyecto "Análisis del Uso de Herramientas Tecnológicas en los Proyectos de Estudiantes de Sistemas UPT" es completamente viable. Tras encontrar bloqueos persistentes en la creación de recursos de Azure SQL, se ha pivotado la arquitectura hacia **Azure Table Storage**, una solución NoSQL robusta, económica y sin las restricciones de aprovisionamiento encontradas. Este cambio no solo resuelve el problema técnico, sino que simplifica la infraestructura y reduce los costos operativos. La universidad cuenta con los recursos necesarios y el proyecto es factible en todos los demás aspectos (operativo, legal, social, ambiental). Se recomienda proceder con esta nueva arquitectura.
+El proyecto "Análisis del Uso de Herramientas Tecnológicas en los Proyectos de Estudiantes de Sistemas UPT" es completamente viable. La principal dificultad encontrada es una posible restricción en la suscripción de Azure que impide la creación de recursos de **Azure SQL**, manifestándose con un error engañoso. Si este bloqueo persiste, se recomienda como plan de contingencia pivotar a una solución de base de datos alternativa como **Azure Table Storage**. Sin embargo, el diseño actual con Azure SQL es técnicamente sólido y se procederá con él. La universidad cuenta con los recursos necesarios y el proyecto es factible en todos los demás aspectos.
