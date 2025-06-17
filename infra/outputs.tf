@@ -12,3 +12,9 @@ output "sql_admin_login" {
   description = "The admin login for the SQL server."
   value       = azurerm_mssql_server.sqlserver.administrator_login
 }
+
+output "sql_admin_password" {
+  description = "The admin password for the SQL server."
+  value       = random_password.sql_password.result
+  sensitive   = true
+}

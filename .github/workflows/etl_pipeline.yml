@@ -11,8 +11,6 @@ jobs:
   terraform-deploy:
     name: 'Terraform Deploy Infrastructure'
     runs-on: ubuntu-latest
-    env:
-      TF_VAR_sql_admin_password: ${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
     
     defaults:
       run:
@@ -22,6 +20,7 @@ jobs:
       db_server: ${{ steps.get_outputs.outputs.db_server }}
       db_database: ${{ steps.get_outputs.outputs.db_database }}
       db_username: ${{ steps.get_outputs.outputs.db_username }}
+      db_password: ${{ steps.get_outputs.outputs.db_password }}
 
     steps:
     - name: Checkout repository
@@ -50,6 +49,7 @@ jobs:
         echo "db_server=$(terraform output -raw sql_server_fqdn)" >> $GITHUB_OUTPUT
         echo "db_database=$(terraform output -raw sql_database_name)" >> $GITHUB_OUTPUT
         echo "db_username=$(terraform output -raw sql_admin_login)" >> $GITHUB_OUTPUT
+        echo "db_password=$(terraform output -raw sql_admin_password)" >> $GITHUB_OUTPUT
 
   run-etl:
     name: 'Run Python ETL Script'
@@ -85,5 +85,5 @@ jobs:
         DB_SERVER: ${{ needs.terraform-deploy.outputs.db_server }}
         DB_DATABASE: ${{ needs.terraform-deploy.outputs.db_database }}
         DB_USERNAME: ${{ needs.terraform-deploy.outputs.db_username }}
-        DB_PASSWORD: ${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
+        DB_PASSWORD: ${{ needs.terraform-deploy.outputs.db_password }}
       run: python ./scrap_pequeno.py

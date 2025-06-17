@@ -28,12 +28,6 @@ variable "sql_admin_login" {
   default     = "dbadmin885"
 }
 
-variable "sql_admin_password" {
-  description = "The administrator password for the SQL Server."
-  type        = string
-  sensitive   = true
-}
-
 variable "powerbi_client_ip" {
   description = "The public IP address of the client machine running Power BI."
   type        = string

@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~>3.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~>3.1"
+    }
   }
 }
 
@@ -17,6 +21,12 @@ resource "random_string" "suffix" {
   upper   = false
 }
 
+resource "random_password" "sql_password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&" # Caracteres especiales seguros para cadenas de conexión
+}
+
 resource "azurerm_resource_group" "rg" {
   name     = "${var.resource_group_name}-${random_string.suffix.result}"
   location = var.location
@@ -28,7 +38,7 @@ resource "azurerm_mssql_server" "sqlserver" {
   location                     = azurerm_resource_group.rg.location
   version                      = "12.0"
   administrator_login          = var.sql_admin_login
-  administrator_login_password = var.sql_admin_password
+  administrator_login_password = random_password.sql_password.result
 }
 
 resource "azurerm_mssql_database" "db" {
