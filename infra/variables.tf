@@ -7,19 +7,19 @@ variable "location" {
 variable "resource_group_name" {
   description = "The name of the resource group."
   type        = string
-  default     = "rg-si885-project-test2"
+  default     = "rg-upt-tech-analysis"
 }
 
 variable "sql_server_name" {
   description = "The name of the SQL Server."
   type        = string
-  default     = "sql-si885-server-test2"
+  default     = "sql-upt-tech-analysis-server"
 }
 
 variable "sql_database_name" {
   description = "The name of the SQL Database."
   type        = string
-  default     = "db-si885-project"
+  default     = "db-upt-tech-analysis"
 }
 
 variable "sql_admin_login" {
