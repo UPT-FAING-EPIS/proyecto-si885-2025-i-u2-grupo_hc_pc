@@ -1,8 +1,3 @@
-output "connection_string" {
-  value     = azurerm_storage_account.storage.primary_connection_string
-  sensitive = true
-}
-
 output "sql_server_fqdn" {
   description = "The fully qualified domain name of the SQL server."
   value       = azurerm_mssql_server.sqlserver.fully_qualified_domain_name
