@@ -1,5 +1,5 @@
 pandas
 requests
 beautifulsoup4
-azure-data-tables
 pyodbc
+sqlalchemy

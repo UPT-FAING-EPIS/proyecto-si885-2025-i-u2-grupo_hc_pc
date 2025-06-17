@@ -22,27 +22,19 @@ resource "azurerm_resource_group" "rg" {
   location = var.location
 }
 
-resource "azurerm_storage_account" "storage" {
-  name                     = "${var.storage_account_name}${random_string.suffix.result}"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
-
-resource "azurerm_storage_table" "table" {
-  name                 = var.storage_table_name
-  storage_account_name = azurerm_storage_account.storage.name
-}
-
-# SQL Server resources (added missing parts)
 resource "azurerm_mssql_server" "sqlserver" {
-  name                         = "${var.sql_server_name}${random_string.suffix.result}"
+  name                         = "${var.sql_server_name}-${random_string.suffix.result}"
   resource_group_name          = azurerm_resource_group.rg.name
   location                     = azurerm_resource_group.rg.location
   version                      = "12.0"
-  administrator_login          = var.sql_admin_username
+  administrator_login          = var.sql_admin_login
   administrator_login_password = var.sql_admin_password
+}
+
+resource "azurerm_mssql_database" "db" {
+  name      = var.sql_database_name
+  server_id = azurerm_mssql_server.sqlserver.id
+  sku_name  = "Basic"
 }
 
 resource "azurerm_mssql_firewall_rule" "powerbi_rule" {
