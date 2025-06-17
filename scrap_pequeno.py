@@ -10,6 +10,7 @@ import os
 import sqlalchemy
 from sqlalchemy import create_engine
 import urllib
+import sys
 
 # Configuración
 ORG_NAME = "UPT-FAING-EPIS"
@@ -518,7 +519,7 @@ if __name__ == '__main__':
     print(f"Total de repositorios encontrados en la organización: {len(all_repos)}")
     
     # Limitar a los primeros 30 repositorios para la versión pequeña
-    repos_to_analyze = all_repos[:600] 
+    repos_to_analyze = all_repos[:50] 
     print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(all_repos)}.")
     
     if repos_to_analyze:
@@ -536,6 +537,7 @@ if __name__ == '__main__':
             print("Proceso ETL completado exitosamente.")
         except Exception as e:
             print(f"Ocurrió un error durante el proceso ETL: {e}")
+            sys.exit(1) # Salir con un código de error para que el pipeline falle
     else:
         print("No hay repositorios para analizar después de aplicar el límite.")
 
