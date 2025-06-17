@@ -7,13 +7,13 @@ variable "location" {
 variable "resource_group_name" {
   description = "The name of the resource group."
   type        = string
-  default     = "rg-si885-project-debug"
+  default     = "rg-si885-project-test1"
 }
 
 variable "sql_server_name" {
   description = "The name of the SQL Server."
   type        = string
-  default     = "sql-si885-server-debug"
+  default     = "sql-si885-server-test1"
 }
 
 variable "sql_database_name" {
