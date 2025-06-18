@@ -135,10 +135,10 @@ def load_data_to_db(engine, data_frames):
                 continue
             print(f"Cargando {len(df)} filas en la tabla {name}...")
             try:
-                # Mapeo explícito de tipos de datos de objeto (string) a NVARCHAR.
-                # Esto evita que pyodbc/SQLAlchemy infiera incorrectamente la longitud de las columnas
-                # de texto, lo que causa errores de "String data, right truncation".
-                dtype_mapping = {c: types.NVARCHAR for c in df.columns if df[c].dtype == 'object'}
+                # Mapeo explícito de tipos de datos de objeto (string) a TEXT.
+                # Esto se traduce a NVARCHAR(MAX) en SQL Server, evitando errores de
+                # "String data, right truncation" de forma definitiva.
+                dtype_mapping = {c: types.TEXT for c in df.columns if df[c].dtype == 'object'}
                 
                 df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                 print(f"  Carga para {name} completada.")
