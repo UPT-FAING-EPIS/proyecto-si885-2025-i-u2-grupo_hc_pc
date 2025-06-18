@@ -525,6 +525,7 @@ def analyze_repositories_detailed_and_tech(repos):
         "proyecto_cicd": df_proyecto_cicd,
     }
 
+
 if __name__ == '__main__':
     # --- Ejecución del análisis para un subconjunto de repositorios ---
     all_repos = get_all_repos(ORG_NAME)
