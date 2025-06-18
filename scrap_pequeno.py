@@ -316,6 +316,8 @@ def analyze_repositories_detailed_and_tech(repos):
     seen_cursos = set()
     seen_usuarios = set()
     seen_project_participants = set()
+    seen_issues = set()
+    seen_commits = set()
 
     frameworks_list = ["react", "angular", "vue", "django", "flask", "spring", "laravel", 
                        "express", "rails", ".net", "flutter", "xamarin", "asp.net", "ktor",
@@ -380,6 +382,10 @@ def analyze_repositories_detailed_and_tech(repos):
         print(f"  Obteniendo issues para {repo_full_name}...")
         issues = get_repo_issues(repo_full_name)
         for issue in issues:
+            if issue['id'] in seen_issues:
+                continue
+            seen_issues.add(issue['id'])
+
             creador_id = issue['user']['login'] if issue.get('user') else 'N/A'
             asignado_id = issue['assignee']['login'] if issue.get('assignee') else 'N/A'
             
@@ -409,6 +415,10 @@ def analyze_repositories_detailed_and_tech(repos):
         print(f"  Obteniendo commits para {repo_full_name}...")
         commits_list = get_repo_commits(repo_full_name)
         for commit_info in commits_list:
+            if commit_info['sha'] in seen_commits:
+                continue
+            seen_commits.add(commit_info['sha'])
+
             autor_login = commit_info['author']['login'] if commit_info.get('author') else 'N/A'
             committer_login = commit_info['committer']['login'] if commit_info.get('committer') else 'N/A'
             
