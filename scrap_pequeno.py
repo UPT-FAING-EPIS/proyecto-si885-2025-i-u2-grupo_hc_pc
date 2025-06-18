@@ -542,7 +542,7 @@ if __name__ == '__main__':
     print(f"Total de repositorios encontrados en la organización: {len(all_repos)}")
     
     # Limitar a los primeros 30 repositorios para la versión pequeña
-    repos_to_analyze = all_repos[:50] 
+    repos_to_analyze = all_repos[:600] 
     print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(all_repos)}.")
     
     if repos_to_analyze:
