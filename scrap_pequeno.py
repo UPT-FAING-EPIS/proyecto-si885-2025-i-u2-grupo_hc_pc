@@ -44,7 +44,8 @@ def get_db_engine():
     )
     
     conn_str = f"mssql+pyodbc:///?odbc_connect={params}"
-    engine = create_engine(conn_str, fast_executemany=True)
+    # Se deshabilita fast_executemany para evitar errores de truncamiento de pyodbc.
+    engine = create_engine(conn_str)
     return engine
 
 def create_database_schema(engine):
