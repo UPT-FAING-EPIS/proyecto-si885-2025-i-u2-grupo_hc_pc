@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 import os
 import sqlalchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, types
 import urllib
 import sys
 
@@ -135,7 +135,12 @@ def load_data_to_db(engine, data_frames):
                 continue
             print(f"Cargando {len(df)} filas en la tabla {name}...")
             try:
-                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200)
+                # Mapeo explícito de tipos de datos de objeto (string) a NVARCHAR.
+                # Esto evita que pyodbc/SQLAlchemy infiera incorrectamente la longitud de las columnas
+                # de texto, lo que causa errores de "String data, right truncation".
+                dtype_mapping = {c: types.NVARCHAR for c in df.columns if df[c].dtype == 'object'}
+                
+                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                 print(f"  Carga para {name} completada.")
             except Exception as e:
                 print(f"Error al cargar datos en la tabla {name}: {e}")
