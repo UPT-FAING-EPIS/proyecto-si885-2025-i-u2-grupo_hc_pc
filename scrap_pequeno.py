@@ -1,4 +1,4 @@
-e# filepath: c:\Users\angel\Documents\IN\scarp\Scrap\scrap_pequeno.py
+# filepath: c:\Users\angel\Documents\IN\scarp\Scrap\scrap_pequeno.py
 import requests
 import pandas as pd
 from collections import defaultdict
@@ -542,7 +542,7 @@ if __name__ == '__main__':
     print(f"Total de repositorios encontrados en la organización: {len(all_repos)}")
     
     # Limitar a los primeros 30 repositorios para la versión pequeña
-    repos_to_analyze = all_repos[:600] 
+    repos_to_analyze = all_repos[:400] 
     print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(all_repos)}.")
     
     if repos_to_analyze:
