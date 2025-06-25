@@ -15,6 +15,6 @@ output "sql_admin_login" {
 
 output "sql_admin_password" {
   description = "The admin password for the SQL server."
-  value       = random_password.sql_password.result
+  value       = local.sql_password
   sensitive   = true
 }

@@ -4,10 +4,14 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~>3.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~>3.1"
-    }
+  }
+  
+  # Backend remoto para mantener el estado
+  backend "azurerm" {
+    resource_group_name  = "rg-upt-tech-analysis-lsnvfq"
+    storage_account_name = "stterraformstatelsnvfq"
+    container_name      = "tfstate"
+    key                 = "upt-tech-analysis.terraform.tfstate"
   }
 }
 
@@ -15,30 +19,24 @@ provider "azurerm" {
   features {}
 }
 
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
-}
-
-resource "random_password" "sql_password" {
-  length           = 16
-  special          = true
-  override_special = "!#$%&" # Caracteres especiales seguros para cadenas de conexión
+# Usar valores fijos específicos del despliegue existente
+locals {
+  suffix = "lsnvfq" # Sufijo específico del servidor existente
+  sql_password = "sY7CB!D5$BuzCov3" # Contraseña específica existente
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = "${var.resource_group_name}-${random_string.suffix.result}"
+  name     = "${var.resource_group_name}-${local.suffix}"
   location = var.location
 }
 
 resource "azurerm_mssql_server" "sqlserver" {
-  name                         = "${var.sql_server_name}-${random_string.suffix.result}"
+  name                         = "${var.sql_server_name}-${local.suffix}"
   resource_group_name          = azurerm_resource_group.rg.name
   location                     = azurerm_resource_group.rg.location
   version                      = "12.0"
   administrator_login          = var.sql_admin_login
-  administrator_login_password = random_password.sql_password.result
+  administrator_login_password = local.sql_password # Usar contraseña fija
 }
 
 resource "azurerm_mssql_database" "db" {

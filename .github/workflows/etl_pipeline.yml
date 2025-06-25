@@ -8,8 +8,8 @@ on:
     - cron: '0 3 * * 1' # Se ejecuta cada Lunes a las 3 AM UTC
 
 jobs:
-  terraform-deploy:
-    name: 'Terraform Deploy Infrastructure'
+  terraform-check:
+    name: 'Check/Deploy Infrastructure'
     runs-on: ubuntu-latest
     
     defaults:
@@ -40,7 +40,17 @@ jobs:
     - name: Terraform Plan
       run: terraform plan -out=tfplan
 
-    - name: Terraform Apply
+    - name: Check if infrastructure needs updates
+      id: plan_check
+      run: |
+        if terraform plan -detailed-exitcode -out=tfplan; then
+          echo "needs_apply=false" >> $GITHUB_OUTPUT
+        else
+          echo "needs_apply=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Terraform Apply (only if needed)
+      if: steps.plan_check.outputs.needs_apply == 'true'
       run: terraform apply -auto-approve tfplan
 
     - name: Get Terraform Outputs
@@ -55,7 +65,7 @@ jobs:
   run-etl:
     name: 'Run Python ETL Script'
     runs-on: ubuntu-latest
-    needs: terraform-deploy
+    needs: terraform-check
     permissions:
       contents: read # Permiso necesario para leer repositorios públicos
     
@@ -88,8 +98,8 @@ jobs:
     - name: Run ETL script
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Usar el token integrado y seguro de GitHub
-        DB_SERVER: ${{ needs.terraform-deploy.outputs.db_server }}
-        DB_DATABASE: ${{ needs.terraform-deploy.outputs.db_database }}
-        DB_USERNAME: ${{ needs.terraform-deploy.outputs.db_username }}
-        DB_PASSWORD: ${{ needs.terraform-deploy.outputs.db_password }}
+        DB_SERVER: ${{ needs.terraform-check.outputs.db_server }}
+        DB_DATABASE: ${{ needs.terraform-check.outputs.db_database }}
+        DB_USERNAME: ${{ needs.terraform-check.outputs.db_username }}
+        DB_PASSWORD: ${{ needs.terraform-check.outputs.db_password }}
       run: python ./scrap_pequeno.py

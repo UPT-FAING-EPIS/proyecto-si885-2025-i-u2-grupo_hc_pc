@@ -1,0 +1,57 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch: # Permite ejecutar manualmente
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+
+jobs:
+  deploy-infrastructure:
+    name: 'Deploy Azure Infrastructure'
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./infra
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 'Login to Azure CLI'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Create backend configuration
+      run: |
+        cat > backend.tf << EOF
+        terraform {
+          backend "azurerm" {
+            resource_group_name  = "rg-upt-tech-analysis-lsnvfq"
+            storage_account_name = "stterraformstatelsnvfq"
+            container_name      = "tfstate"
+            key                 = "upt-tech-analysis.terraform.tfstate"
+          }
+        }
+        EOF
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Plan
+      run: terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve tfplan
+
+    - name: Display Terraform Outputs
+      run: |
+        echo "=== Terraform Outputs ==="
+        terraform output
