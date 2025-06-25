@@ -1,15 +1,34 @@
 # Infraestructura Azure - UPT Tech Analysis
 
-⚠️ **IMPORTANTE**: Infraestructura ya configurada con credenciales específicas
+⚠️ **IMPORTANTE**: Infraestructura ya configurada - Necesita importar recursos existentes
 
-## 🚀 **Verificación Rápida** (Ejecutar primero)
+## 🚀 **Pasos para Configurar Terraform con tu Infraestructura Existente**
 
+### Paso 1: Importar recursos existentes
 ```powershell
 cd C:\Users\HP\Documents\Serie\proyecto-si885-2025-i-u2-grupo_hc_pc\infra
-.\check-infrastructure.ps1
+
+# Instalar Azure CLI si no lo tienes
+# .\install-azure-cli.ps1
+
+# Hacer login en Azure
+az login
+
+# Importar recursos existentes
+.\import-existing.ps1
 ```
 
-Este script verificará si tu infraestructura ya existe y te dirá qué hacer.
+### Paso 2: Crear backend storage
+```powershell
+# Crear storage para el estado de Terraform
+.\setup-backend.ps1
+```
+
+### Paso 3: Migrar a backend remoto
+```powershell
+# Descomentar backend en main.tf y ejecutar:
+terraform init -migrate-state
+```
 
 ## ⚙️ Solo si la infraestructura NO existe
 

@@ -29,18 +29,21 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
-    - name: Create backend configuration
+    - name: Setup backend (create storage if needed)
       run: |
-        cat > backend.tf << EOF
-        terraform {
-          backend "azurerm" {
-            resource_group_name  = "rg-upt-tech-analysis-lsnvfq"
-            storage_account_name = "stterraformstatelsnvfq"
-            container_name      = "tfstate"
-            key                 = "upt-tech-analysis.terraform.tfstate"
-          }
-        }
-        EOF
+        # Verificar si existe el storage account para el backend
+        if ! az storage account show --name stterraformstatelsnvfq --resource-group rg-upt-tech-analysis-lsnvfq >/dev/null 2>&1; then
+          echo "Creating backend storage..."
+          az group create --name rg-upt-tech-analysis-lsnvfq --location "West US 2" || true
+          az storage account create \
+            --resource-group rg-upt-tech-analysis-lsnvfq \
+            --name stterraformstatelsnvfq \
+            --sku Standard_LRS \
+            --encryption-services blob
+          az storage container create \
+            --name tfstate \
+            --account-name stterraformstatelsnvfq
+        fi
 
     - name: Terraform Init
       run: terraform init

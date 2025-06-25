@@ -6,13 +6,13 @@ terraform {
     }
   }
   
-  # Backend remoto para mantener el estado
-  backend "azurerm" {
-    resource_group_name  = "rg-upt-tech-analysis-lsnvfq"
-    storage_account_name = "stterraformstatelsnvfq"
-    container_name      = "tfstate"
-    key                 = "upt-tech-analysis.terraform.tfstate"
-  }
+  # Backend comentado hasta crear el storage account
+  # backend "azurerm" {
+  #   resource_group_name  = "rg-upt-tech-analysis-lsnvfq"
+  #   storage_account_name = "stterraformstatelsnvfq"
+  #   container_name      = "tfstate"
+  #   key                 = "upt-tech-analysis.terraform.tfstate"
+  # }
 }
 
 provider "azurerm" {
