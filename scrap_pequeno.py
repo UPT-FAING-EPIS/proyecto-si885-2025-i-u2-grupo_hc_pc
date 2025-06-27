@@ -264,16 +264,24 @@ def get_repo_commits(repo_full_name):
     return get_paginated_data(url)
 
 def extract_course_info(repo_name):
-    """Extraer información del curso y unidad del nombre del repositorio."""
-    match = re.search(r'(si[a-zA-Z0-9]+).*?(u\d+)', repo_name.lower())
-    if match:
-        return match.group(1), match.group(2)
-    match_simple_curso = re.search(r'(si[a-zA-Z0-9]+)', repo_name.lower())
-    match_simple_unidad = re.search(r'(u\d+)', repo_name.lower())
-    curso = match_simple_curso.group(1) if match_simple_curso else None
-    unidad = match_simple_unidad.group(1) if match_simple_unidad else None
-    if curso or unidad:
-        return curso, unidad
+    """Extraer información del curso del nombre del repositorio (solo cursos específicos)."""
+    # Cursos permitidos con sus nombres completos
+    allowed_courses = {
+        'si783': 'Base de Datos II',
+        'si784': 'Calidad y Pruebas de Software', 
+        'si685': 'Diseño y Arquitectura de Software',
+        'si885': 'Inteligencia de Negocios',
+        'si8811': 'Topicos de Base de Datos Avanzados I',
+        'si888': 'Diseño y Creacion de Videojuegos',
+        'si889': 'Patrones de Software',
+        'si982': 'Programacion Web II'
+    }
+    
+    # Buscar cualquiera de los cursos permitidos en el nombre del repositorio
+    for course_id, course_name in allowed_courses.items():
+        if course_id in repo_name.lower():
+            return course_id, course_name
+    
     return None, None
 
 def analyze_repositories_detailed_and_tech(repos):
@@ -357,18 +365,21 @@ def analyze_repositories_detailed_and_tech(repos):
         repo_full_name = repo['full_name']
         repo_id = repo['id'] 
         
-        curso_nombre_raw, unidad_raw = extract_course_info(repo['name'])
-        curso_id = None
-        if curso_nombre_raw:
-            curso_key = (curso_nombre_raw, unidad_raw if unidad_raw else "N/A")
-            if curso_key not in seen_cursos:
-                cursos_data.append({
-                    "CursoID": f"{curso_nombre_raw}_{unidad_raw if unidad_raw else 'NA'}",
-                    "NombreCurso": curso_nombre_raw,
-                    "Unidad": unidad_raw if unidad_raw else "N/A"
-                })
-                seen_cursos.add(curso_key)
-            curso_id = f"{curso_nombre_raw}_{unidad_raw if unidad_raw else 'NA'}"
+        curso_id, curso_nombre = extract_course_info(repo['name'])
+        
+        # Filtrar solo repositorios que pertenezcan a los cursos permitidos
+        if not curso_id or not curso_nombre:
+            print(f"  Repositorio {repo['name']} no pertenece a ningún curso permitido. Saltando...")
+            continue
+            
+        # Crear entrada de curso si no existe
+        if curso_id not in seen_cursos:
+            cursos_data.append({
+                "CursoID": curso_id,
+                "NombreCurso": curso_nombre,
+                "Unidad": ""  # Campo vacío según requerimiento
+            })
+            seen_cursos.add(curso_id)
 
         proyectos_data.append({
             "ProyectoID": repo_id, "NombreProyecto": repo['name'], "RepoFullName": repo_full_name,
@@ -544,11 +555,21 @@ if __name__ == '__main__':
     all_repos = get_all_repos(ORG_NAME)
     print(f"Total de repositorios encontrados en la organización: {len(all_repos)}")
     
-    # Limitar a los primeros 600 repositorios para la versión pequeña
-    repos_to_analyze = all_repos[:300]
-    # Para escanear TODOS los repositorios, descomenta la siguiente línea y comenta la anterior:
-    # repos_to_analyze = all_repos 
-    print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(all_repos)}.")
+    # Filtrar repositorios que pertenezcan solo a los cursos permitidos
+    allowed_course_codes = ['si783', 'si784', 'si685', 'si885', 'si8811', 'si888', 'si889', 'si982']
+    filtered_repos = []
+    for repo in all_repos:
+        repo_name_lower = repo['name'].lower()
+        if any(course_code in repo_name_lower for course_code in allowed_course_codes):
+            filtered_repos.append(repo)
+    
+    print(f"Repositorios filtrados por cursos permitidos: {len(filtered_repos)}")
+    
+    # Limitar a los primeros 300 repositorios para la versión pequeña
+    repos_to_analyze = filtered_repos[:300]
+    # Para escanear TODOS los repositorios filtrados, descomenta la siguiente línea y comenta la anterior:
+    # repos_to_analyze = filtered_repos
+    print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(filtered_repos)} filtrados.")
     
     if repos_to_analyze:
         data_frames = analyze_repositories_detailed_and_tech(repos_to_analyze)
