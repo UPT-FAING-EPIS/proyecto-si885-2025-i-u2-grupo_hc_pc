@@ -544,8 +544,10 @@ if __name__ == '__main__':
     all_repos = get_all_repos(ORG_NAME)
     print(f"Total de repositorios encontrados en la organización: {len(all_repos)}")
     
-    # Limitar a los primeros 30 repositorios para la versión pequeña
-    repos_to_analyze = all_repos[:10] 
+    # Limitar a los primeros 600 repositorios para la versión pequeña
+    repos_to_analyze = all_repos[:300]
+    # Para escanear TODOS los repositorios, descomenta la siguiente línea y comenta la anterior:
+    # repos_to_analyze = all_repos 
     print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(all_repos)}.")
     
     if repos_to_analyze:
