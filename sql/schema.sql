@@ -4,6 +4,7 @@
 -- Este script asegura que el esquema se pueda (re)crear de forma segura en cada ejecución del pipeline.
 
 -- Paso 1: Eliminar Vistas existentes para evitar conflictos.
+DROP VIEW IF EXISTS V_EstadisticasFechasCreacion;
 DROP VIEW IF EXISTS V_EstadisticasUnidades;
 DROP VIEW IF EXISTS V_ProyectosConLenguajePrincipal;
 DROP VIEW IF EXISTS V_EstadisticasCICD;
@@ -252,15 +253,14 @@ SELECT
     COUNT(p.ProyectoID) AS CantidadProyectos,
     AVG(CAST(p.Stars AS FLOAT)) AS PromedioStars,
     AVG(CAST(p.Forks AS FLOAT)) AS PromedioForks,
-    AVG(CAST(p.OpenIssues AS FLOAT)) AS PromedioOpenIssues
-FROM FechasCreacion fc
-INNER JOIN Proyectos p ON fc.FechaCreacionID = p.FechaCreacionID
-GROUP BY fc.Año, fc.Mes
-ORDER BY fc.Año DESC, 
+    AVG(CAST(p.OpenIssues AS FLOAT)) AS PromedioOpenIssues,
     CASE fc.Mes 
         WHEN 'Enero' THEN 1 WHEN 'Febrero' THEN 2 WHEN 'Marzo' THEN 3 
         WHEN 'Abril' THEN 4 WHEN 'Mayo' THEN 5 WHEN 'Junio' THEN 6
         WHEN 'Julio' THEN 7 WHEN 'Agosto' THEN 8 WHEN 'Septiembre' THEN 9
         WHEN 'Octubre' THEN 10 WHEN 'Noviembre' THEN 11 WHEN 'Diciembre' THEN 12
-    END;
+    END AS NumeroMes
+FROM FechasCreacion fc
+INNER JOIN Proyectos p ON fc.FechaCreacionID = p.FechaCreacionID
+GROUP BY fc.Año, fc.Mes;
 GO
