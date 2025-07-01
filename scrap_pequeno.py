@@ -79,6 +79,9 @@ def get_entity_keys(table_name, row):
     elif table_name == "Lenguajes":
         pk = str(row.get("Clasificacion", "default_clasificacion"))
         rk = str(row.get("LenguajeID", "default_id"))
+    elif table_name == "FechasCreacion":
+        pk = str(row.get("Año", "default_year"))
+        rk = str(row.get("Mes", "default_month"))
     elif table_name == "Usuarios":
         pk = str(row.get("TipoUsuario", "default_tipo"))
         rk = str(row.get("UsuarioID", "default_id"))
@@ -127,6 +130,7 @@ def load_data_to_db(engine, data_frames):
     load_order = [
         ("Cursos", data_frames["cursos"]),
         ("Lenguajes", data_frames["lenguajes"]),
+        ("FechasCreacion", data_frames["fechas_creacion"]),
         ("Usuarios", data_frames["usuarios"]),
         ("Proyectos", data_frames["proyectos"]),
         ("ProyectoUnidades", data_frames["proyecto_unidades"]),
@@ -401,6 +405,7 @@ def analyze_repositories_detailed_and_tech(repos):
     lenguajes_data = []
     proyecto_lenguajes_data = []
     proyecto_unidades_data = []
+    fechas_creacion_data = []
 
     proyecto_frameworks_data = []
     proyecto_librerias_data = []
@@ -420,6 +425,7 @@ def analyze_repositories_detailed_and_tech(repos):
     seen_issues = set()
     seen_commits = set()
     seen_lenguajes = set()
+    seen_fechas_creacion = {}  # Diccionario para mapear (año, mes) -> ID
 
     frameworks_list = ["react", "angular", "vue", "django", "flask", "spring", "laravel", 
                        "express", "rails", ".net", "flutter", "xamarin", "asp.net", "ktor",
@@ -475,11 +481,30 @@ def analyze_repositories_detailed_and_tech(repos):
             })
             seen_cursos.add(curso_id)
 
+        # Extraer año y mes de la fecha de creación
+        creation_year, creation_month = extract_year_and_month_from_date(repo['created_at'])
+        fecha_creacion_id = None
+        
+        if creation_year and creation_month:
+            # Verificar si ya existe esta combinación de año/mes
+            fecha_key = (creation_year, creation_month)
+            if fecha_key not in seen_fechas_creacion:
+                # Crear nueva entrada de fecha
+                fecha_creacion_id = len(fechas_creacion_data) + 1
+                fechas_creacion_data.append({
+                    "FechaCreacionID": fecha_creacion_id,
+                    "Año": creation_year,
+                    "Mes": creation_month
+                })
+                seen_fechas_creacion[fecha_key] = fecha_creacion_id
+            else:
+                fecha_creacion_id = seen_fechas_creacion[fecha_key]
+
         proyectos_data.append({
             "ProyectoID": repo_id, "NombreProyecto": repo['name'], "RepoFullName": repo_full_name,
-            "CursoID": curso_id, "Descripcion": repo['description'], "URLRepositorio": repo['html_url'],
-            "FechaCreacion": repo['created_at'], "FechaUltimaActualizacion": repo['updated_at'],
-            "Stars": repo.get('stargazers_count', 0),
+            "CursoID": curso_id, "FechaCreacionID": fecha_creacion_id, "Descripcion": repo['description'], 
+            "URLRepositorio": repo['html_url'], "FechaCreacion": repo['created_at'], 
+            "FechaUltimaActualizacion": repo['updated_at'], "Stars": repo.get('stargazers_count', 0),
             "Forks": repo.get('forks_count', 0), "OpenIssues": repo.get('open_issues_count', 0),
             "FechaUltimaActividad": None, # Se llenará más adelante
             "Contexto": ""  # Se llenará con el título del README
@@ -665,6 +690,7 @@ def analyze_repositories_detailed_and_tech(repos):
     df_lenguajes = pd.DataFrame(lenguajes_data)
     df_proyecto_lenguajes = pd.DataFrame(proyecto_lenguajes_data)
     df_proyecto_unidades = pd.DataFrame(proyecto_unidades_data)
+    df_fechas_creacion = pd.DataFrame(fechas_creacion_data)
     
     df_proyecto_frameworks = pd.DataFrame(proyecto_frameworks_data)
     df_proyecto_librerias = pd.DataFrame(proyecto_librerias_data)
@@ -698,12 +724,32 @@ def analyze_repositories_detailed_and_tech(repos):
         "lenguajes": df_lenguajes,
         "proyecto_lenguajes": df_proyecto_lenguajes,
         "proyecto_unidades": df_proyecto_unidades,
+        "fechas_creacion": df_fechas_creacion,
         "proyecto_frameworks": df_proyecto_frameworks,
         "proyecto_librerias": df_proyecto_librerias,
         "proyecto_db": df_proyecto_db,
         "proyecto_cicd": df_proyecto_cicd,
     }
 
+
+def get_month_name_spanish(month_number):
+    """Convertir número de mes a nombre en español."""
+    months = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+    return months.get(month_number, 'Desconocido')
+
+def extract_year_and_month_from_date(date_string):
+    """Extraer año y mes de una fecha ISO."""
+    try:
+        date_obj = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
+        year = date_obj.year
+        month_name = get_month_name_spanish(date_obj.month)
+        return year, month_name
+    except:
+        return None, None
 
 if __name__ == '__main__':
     # --- Ejecución del análisis para un subconjunto de repositorios ---

@@ -26,6 +26,7 @@ DROP TABLE IF EXISTS ProyectoUnidades;
 DROP TABLE IF EXISTS Proyectos;
 DROP TABLE IF EXISTS Usuarios;
 DROP TABLE IF EXISTS Lenguajes;
+DROP TABLE IF EXISTS FechasCreacion;
 DROP TABLE IF EXISTS Cursos;
 GO
 
@@ -44,6 +45,13 @@ CREATE TABLE Lenguajes (
 );
 GO
 
+CREATE TABLE FechasCreacion (
+    FechaCreacionID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    Año INT,
+    Mes NVARCHAR(20) -- Enero, Febrero, Marzo, etc.
+);
+GO
+
 CREATE TABLE Usuarios (
     UsuarioID NVARCHAR(255) PRIMARY KEY,
     NombreUsuario NVARCHAR(255),
@@ -57,6 +65,7 @@ CREATE TABLE Proyectos (
     NombreProyecto NVARCHAR(255),
     RepoFullName NVARCHAR(512),
     CursoID NVARCHAR(100) NULL,
+    FechaCreacionID BIGINT NULL,
     Descripcion NVARCHAR(MAX),
     URLRepositorio NVARCHAR(1024),
     FechaCreacion DATETIME,
@@ -66,7 +75,8 @@ CREATE TABLE Proyectos (
     OpenIssues INT,
     FechaUltimaActividad DATETIME NULL,
     Contexto NVARCHAR(MAX), -- Título del README
-    FOREIGN KEY (CursoID) REFERENCES Cursos(CursoID)
+    FOREIGN KEY (CursoID) REFERENCES Cursos(CursoID),
+    FOREIGN KEY (FechaCreacionID) REFERENCES FechasCreacion(FechaCreacionID)
 );
 GO
 
@@ -232,4 +242,25 @@ FROM ProyectoUnidades pu
 INNER JOIN Proyectos p ON pu.ProyectoID = p.ProyectoID
 WHERE pu.Unidad IS NOT NULL AND pu.Unidad != ''
 GROUP BY pu.Unidad, pu.Año;
+GO
+
+-- Vista para estadísticas de fechas de creación
+CREATE VIEW V_EstadisticasFechasCreacion AS
+SELECT 
+    fc.Año,
+    fc.Mes,
+    COUNT(p.ProyectoID) AS CantidadProyectos,
+    AVG(CAST(p.Stars AS FLOAT)) AS PromedioStars,
+    AVG(CAST(p.Forks AS FLOAT)) AS PromedioForks,
+    AVG(CAST(p.OpenIssues AS FLOAT)) AS PromedioOpenIssues
+FROM FechasCreacion fc
+INNER JOIN Proyectos p ON fc.FechaCreacionID = p.FechaCreacionID
+GROUP BY fc.Año, fc.Mes
+ORDER BY fc.Año DESC, 
+    CASE fc.Mes 
+        WHEN 'Enero' THEN 1 WHEN 'Febrero' THEN 2 WHEN 'Marzo' THEN 3 
+        WHEN 'Abril' THEN 4 WHEN 'Mayo' THEN 5 WHEN 'Junio' THEN 6
+        WHEN 'Julio' THEN 7 WHEN 'Agosto' THEN 8 WHEN 'Septiembre' THEN 9
+        WHEN 'Octubre' THEN 10 WHEN 'Noviembre' THEN 11 WHEN 'Diciembre' THEN 12
+    END;
 GO
