@@ -59,7 +59,6 @@ CREATE TABLE Proyectos (
     URLRepositorio NVARCHAR(1024),
     FechaCreacion DATETIME,
     FechaUltimaActualizacion DATETIME,
-    LenguajePrincipal NVARCHAR(100),
     Stars INT,
     Forks INT,
     OpenIssues INT,
@@ -128,6 +127,7 @@ CREATE TABLE ProyectoLenguajes (
     ProyectoID BIGINT,
     LenguajeID NVARCHAR(100),
     BytesCount BIGINT DEFAULT 0,
+    EsPrincipal BIT DEFAULT 0, -- Indica si es el lenguaje principal del proyecto
     PRIMARY KEY (ProyectoID, LenguajeID),
     FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE,
     FOREIGN KEY (LenguajeID) REFERENCES Lenguajes(LenguajeID) ON DELETE CASCADE
@@ -193,4 +193,41 @@ CREATE VIEW V_EstadisticasCICD AS
 SELECT HerramientaCI_CD, COUNT(ProyectoID) AS CantidadProyectos
 FROM ProyectoCICD
 GROUP BY HerramientaCI_CD;
+GO
+
+-- Vista para obtener el lenguaje principal de cada proyecto
+CREATE VIEW V_ProyectosConLenguajePrincipal AS
+SELECT 
+    p.ProyectoID,
+    p.NombreProyecto,
+    p.RepoFullName,
+    p.CursoID,
+    l.NombreLenguaje AS LenguajePrincipal,
+    l.Clasificacion AS ClasificacionLenguaje,
+    pl.BytesCount AS BytesLenguajePrincipal,
+    p.Stars,
+    p.Forks,
+    p.OpenIssues,
+    p.FechaCreacion,
+    p.FechaUltimaActualizacion,
+    p.FechaUltimaActividad,
+    p.Contexto
+FROM Proyectos p
+LEFT JOIN ProyectoLenguajes pl ON p.ProyectoID = pl.ProyectoID AND pl.EsPrincipal = 1
+LEFT JOIN Lenguajes l ON pl.LenguajeID = l.LenguajeID;
+GO
+
+-- Vista para estadísticas de unidades académicas
+CREATE VIEW V_EstadisticasUnidades AS
+SELECT 
+    pu.Unidad,
+    pu.Año,
+    COUNT(p.ProyectoID) AS CantidadProyectos,
+    AVG(CAST(p.Stars AS FLOAT)) AS PromedioStars,
+    AVG(CAST(p.Forks AS FLOAT)) AS PromedioForks,
+    AVG(CAST(p.OpenIssues AS FLOAT)) AS PromedioOpenIssues
+FROM ProyectoUnidades pu
+INNER JOIN Proyectos p ON pu.ProyectoID = p.ProyectoID
+WHERE pu.Unidad IS NOT NULL AND pu.Unidad != ''
+GROUP BY pu.Unidad, pu.Año;
 GO

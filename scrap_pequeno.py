@@ -479,7 +479,7 @@ def analyze_repositories_detailed_and_tech(repos):
             "ProyectoID": repo_id, "NombreProyecto": repo['name'], "RepoFullName": repo_full_name,
             "CursoID": curso_id, "Descripcion": repo['description'], "URLRepositorio": repo['html_url'],
             "FechaCreacion": repo['created_at'], "FechaUltimaActualizacion": repo['updated_at'],
-            "LenguajePrincipal": repo.get('language', 'N/A'), "Stars": repo.get('stargazers_count', 0),
+            "Stars": repo.get('stargazers_count', 0),
             "Forks": repo.get('forks_count', 0), "OpenIssues": repo.get('open_issues_count', 0),
             "FechaUltimaActividad": None, # Se llenará más adelante
             "Contexto": ""  # Se llenará con el título del README
@@ -563,6 +563,19 @@ def analyze_repositories_detailed_and_tech(repos):
         print(f"  Analizando tecnologías para {repo_full_name}...")
         repo_langs = analyze_repo_languages(repo) 
         
+        # Determinar el lenguaje principal (el que tiene más bytes)
+        lenguaje_principal = None
+        max_bytes = 0
+        if repo_langs:
+            lenguaje_principal = max(repo_langs, key=repo_langs.get)
+            max_bytes = repo_langs[lenguaje_principal]
+        
+        # Si no hay lenguajes detectados, usar el lenguaje del repo de GitHub como fallback
+        if not lenguaje_principal and repo.get('language'):
+            lenguaje_principal = repo['language']
+            max_bytes = 1  # Valor simbólico
+            repo_langs[lenguaje_principal] = max_bytes
+        
         # Procesar lenguajes del repositorio
         for lang, bytes_count in repo_langs.items():
             language_stats[lang] += bytes_count
@@ -578,11 +591,15 @@ def analyze_repositories_detailed_and_tech(repos):
                 })
                 seen_lenguajes.add(lang)
             
+            # Determinar si es el lenguaje principal
+            es_principal = 1 if lang == lenguaje_principal else 0
+            
             # Agregar relación proyecto-lenguaje
             proyecto_lenguajes_data.append({
                 "ProyectoID": repo_id,
                 "LenguajeID": lang.lower().replace(' ', '_'),
-                "BytesCount": bytes_count
+                "BytesCount": bytes_count,
+                "EsPrincipal": es_principal
             })
         
         readme_content = get_repo_readme(repo) 
