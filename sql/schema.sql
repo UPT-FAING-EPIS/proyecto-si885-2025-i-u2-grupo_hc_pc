@@ -4,6 +4,8 @@
 -- Este script asegura que el esquema se pueda (re)crear de forma segura en cada ejecución del pipeline.
 
 -- Paso 1: Eliminar Vistas existentes para evitar conflictos.
+DROP VIEW IF EXISTS V_EstadisticasUnidades;
+DROP VIEW IF EXISTS V_ProyectosConLenguajePrincipal;
 DROP VIEW IF EXISTS V_EstadisticasCICD;
 DROP VIEW IF EXISTS V_EstadisticasBasesDeDatos;
 DROP VIEW IF EXISTS V_EstadisticasLibrerias;
