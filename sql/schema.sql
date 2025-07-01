@@ -16,11 +16,14 @@ DROP TABLE IF EXISTS ProyectoCICD;
 DROP TABLE IF EXISTS ProyectoBasesDeDatos;
 DROP TABLE IF EXISTS ProyectoLibrerias;
 DROP TABLE IF EXISTS ProyectoFrameworks;
+DROP TABLE IF EXISTS ProyectoLenguajes;
 DROP TABLE IF EXISTS Commits;
 DROP TABLE IF EXISTS Issues;
 DROP TABLE IF EXISTS ColaboradoresPorProyecto;
+DROP TABLE IF EXISTS ProyectoUnidades;
 DROP TABLE IF EXISTS Proyectos;
 DROP TABLE IF EXISTS Usuarios;
+DROP TABLE IF EXISTS Lenguajes;
 DROP TABLE IF EXISTS Cursos;
 GO
 
@@ -29,6 +32,13 @@ CREATE TABLE Cursos (
     CursoID NVARCHAR(100) PRIMARY KEY,
     NombreCurso NVARCHAR(255),
     Unidad NVARCHAR(50)
+);
+GO
+
+CREATE TABLE Lenguajes (
+    LenguajeID NVARCHAR(100) PRIMARY KEY,
+    NombreLenguaje NVARCHAR(255),
+    Clasificacion NVARCHAR(100) -- Frontend, Backend, Fullstack, Mobile, Data Science, etc.
 );
 GO
 
@@ -54,7 +64,17 @@ CREATE TABLE Proyectos (
     Forks INT,
     OpenIssues INT,
     FechaUltimaActividad DATETIME NULL,
+    Contexto NVARCHAR(MAX), -- Título del README
     FOREIGN KEY (CursoID) REFERENCES Cursos(CursoID)
+);
+GO
+
+CREATE TABLE ProyectoUnidades (
+    ProyectoID BIGINT PRIMARY KEY,
+    FechaCreacion DATETIME,
+    Unidad NVARCHAR(50),
+    Año NVARCHAR(10),
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE
 );
 GO
 
@@ -104,6 +124,16 @@ CREATE TABLE ProyectoFrameworks (
 );
 GO
 
+CREATE TABLE ProyectoLenguajes (
+    ProyectoID BIGINT,
+    LenguajeID NVARCHAR(100),
+    BytesCount BIGINT DEFAULT 0,
+    PRIMARY KEY (ProyectoID, LenguajeID),
+    FOREIGN KEY (ProyectoID) REFERENCES Proyectos(ProyectoID) ON DELETE CASCADE,
+    FOREIGN KEY (LenguajeID) REFERENCES Lenguajes(LenguajeID) ON DELETE CASCADE
+);
+GO
+
 CREATE TABLE ProyectoLibrerias (
     ProyectoID BIGINT,
     Libreria NVARCHAR(100),
@@ -131,10 +161,14 @@ GO
 
 -- Paso 4: Crear Vistas para el análisis en Power BI.
 CREATE VIEW V_EstadisticasLenguajes AS
-SELECT LenguajePrincipal, COUNT(ProyectoID) AS CantidadProyectos
-FROM Proyectos
-WHERE LenguajePrincipal IS NOT NULL AND LenguajePrincipal <> 'N/A'
-GROUP BY LenguajePrincipal;
+SELECT 
+    l.NombreLenguaje, 
+    l.Clasificacion,
+    COUNT(pl.ProyectoID) AS CantidadProyectos,
+    SUM(pl.BytesCount) AS TotalBytes
+FROM Lenguajes l
+LEFT JOIN ProyectoLenguajes pl ON l.LenguajeID = pl.LenguajeID
+GROUP BY l.LenguajeID, l.NombreLenguaje, l.Clasificacion;
 GO
 
 CREATE VIEW V_EstadisticasFrameworks AS

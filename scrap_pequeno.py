@@ -76,11 +76,17 @@ def get_entity_keys(table_name, row):
     if table_name == "Cursos":
         pk = str(row.get("NombreCurso", "default_curso"))
         rk = str(row.get("CursoID", "default_id"))
+    elif table_name == "Lenguajes":
+        pk = str(row.get("Clasificacion", "default_clasificacion"))
+        rk = str(row.get("LenguajeID", "default_id"))
     elif table_name == "Usuarios":
         pk = str(row.get("TipoUsuario", "default_tipo"))
         rk = str(row.get("UsuarioID", "default_id"))
     elif table_name == "Proyectos":
         pk = str(row.get("CursoID", "default_curso"))
+        rk = str(row.get("ProyectoID", "default_id"))
+    elif table_name == "ProyectoUnidades":
+        pk = str(row.get("Año", "default_year"))
         rk = str(row.get("ProyectoID", "default_id"))
     elif table_name == "ColaboradoresPorProyecto":
         pk = str(row.get("ProyectoID"))
@@ -91,13 +97,15 @@ def get_entity_keys(table_name, row):
     elif table_name == "Commits":
         pk = str(row.get("ProyectoID"))
         rk = str(row.get("CommitSHA"))
+    elif table_name == "ProyectoLenguajes":
+        pk = str(row.get("ProyectoID"))
+        rk = str(row.get("LenguajeID"))
     elif table_name == "ProyectoFrameworks":
         pk = str(row.get("ProyectoID"))
         rk = str(row.get("Framework"))
     elif table_name == "ProyectoLibrerias":
         pk = str(row.get("ProyectoID"))
         rk = f'{row.get("Libreria")}_{row.get("LenguajeContexto")}'
-
     elif table_name == "ProyectoBasesDeDatos":
         pk = str(row.get("ProyectoID"))
         rk = str(row.get("BaseDeDatos"))
@@ -118,11 +126,14 @@ def load_data_to_db(engine, data_frames):
     """Carga los DataFrames en la base de datos en el orden correcto."""
     load_order = [
         ("Cursos", data_frames["cursos"]),
+        ("Lenguajes", data_frames["lenguajes"]),
         ("Usuarios", data_frames["usuarios"]),
         ("Proyectos", data_frames["proyectos"]),
+        ("ProyectoUnidades", data_frames["proyecto_unidades"]),
         ("ColaboradoresPorProyecto", data_frames["colaboradores_proyecto"]),
         ("Issues", data_frames["issues"]),
         ("Commits", data_frames["commits"]),
+        ("ProyectoLenguajes", data_frames["proyecto_lenguajes"]),
         ("ProyectoFrameworks", data_frames["proyecto_frameworks"]),
         ("ProyectoLibrerias", data_frames["proyecto_librerias"]),
         ("ProyectoBasesDeDatos", data_frames["proyecto_db"]),
@@ -238,6 +249,97 @@ def get_repo_readme(repo, max_retries=3, backoff_factor=0.3):
                  print(f"No se pudo obtener el README para {repo['full_name']}. Se devolverá una cadena vacía.")
     return readme_content
 
+def extract_readme_title(readme_content):
+    """Extraer el título del README (primer # encontrado)."""
+    if not readme_content:
+        return ""
+    
+    lines = readme_content.split('\n')
+    for line in lines:
+        line = line.strip()
+        if line.startswith('# '):
+            # Remover el # y espacios adicionales
+            title = line[2:].strip()
+            return title
+    return ""
+
+def extract_unit_and_year_from_repo_name(repo_full_name):
+    """Extraer unidad y año del nombre completo del repositorio."""
+    # Formato esperado: UPT-FAING-EPIS/proyecto-si784-2024-i-u1
+    try:
+        parts = repo_full_name.split('/')[-1].split('-')
+        year = ""
+        unit = ""
+        
+        # Buscar el año (formato 2024, 2023, etc.)
+        for part in parts:
+            if part.isdigit() and len(part) == 4 and part.startswith('20'):
+                year = part
+                break
+        
+        # Buscar la unidad (formato u1, u2, etc.)
+        for part in parts:
+            if part.startswith('u') and len(part) >= 2:
+                unit = part
+                break
+                
+        return unit, year
+    except:
+        return "", ""
+
+def get_language_classification(language):
+    """Clasificar un lenguaje de programación por su tipo."""
+    language_type_map = {
+        'JavaScript': 'Frontend/Fullstack',
+        'HTML': 'Frontend',
+        'CSS': 'Frontend',
+        'SCSS': 'Frontend',
+        'SASS': 'Frontend',
+        'Less': 'Frontend',
+        'TypeScript': 'Frontend/Fullstack',
+        'Vue': 'Frontend',
+        'React': 'Frontend',
+        'Angular': 'Frontend',
+        
+        'Python': 'Backend/Fullstack',
+        'Java': 'Backend/Fullstack',
+        'C#': 'Backend/Fullstack',
+        'PHP': 'Backend/Fullstack',
+        'Ruby': 'Backend/Fullstack',
+        'Go': 'Backend',
+        'Rust': 'Backend',
+        'Node.js': 'Backend/Fullstack',
+        'Kotlin': 'Backend/Mobile',
+        'Scala': 'Backend/Fullstack',
+        'Elixir': 'Backend',
+        'Erlang': 'Backend',
+        
+        'Swift': 'Mobile',
+        'Objective-C': 'Mobile',
+        'Dart': 'Mobile/Frontend',
+        'Flutter': 'Mobile',
+        
+        'C++': 'System/Backend',
+        'C': 'System',
+        'Assembly': 'Low-level',
+        
+        'R': 'Data Science',
+        'MATLAB': 'Data Science',
+        'Julia': 'Data Science',
+        
+        'Shell': 'Scripting/DevOps',
+        'PowerShell': 'Scripting/DevOps',
+        'Bash': 'Scripting/DevOps',
+        'Perl': 'Scripting',
+        'Lua': 'Scripting/GameDev',
+        
+        'SQL': 'Database',
+        'PLpgSQL': 'Database',
+        'TSQL': 'Database'
+    }
+    
+    return language_type_map.get(language, 'Other')
+
 def detect_tech_in_readme(readme_content, tech_list):
     """Detectar tecnologías mencionadas en el README"""
     detected = []
@@ -296,6 +398,9 @@ def analyze_repositories_detailed_and_tech(repos):
     colaboradores_proyecto_data = []
     issues_data = []
     commits_data = []
+    lenguajes_data = []
+    proyecto_lenguajes_data = []
+    proyecto_unidades_data = []
 
     proyecto_frameworks_data = []
     proyecto_librerias_data = []
@@ -308,24 +413,13 @@ def analyze_repositories_detailed_and_tech(repos):
     library_stats = defaultdict(int) 
     db_stats = defaultdict(int)
     ci_cd_stats = defaultdict(int)
-    # last_updated_dates = # Ya no se necesita
-
-    language_type_map = {
-        'JavaScript': 'Frontend/Fullstack', 'HTML': 'Frontend', 'CSS': 'Frontend',
-        'Python': 'Backend/Fullstack', 'Java': 'Backend/Fullstack', 'C#': 'Backend/Fullstack',
-        'PHP': 'Backend/Fullstack', 'Ruby': 'Backend/Fullstack', 'Go': 'Backend',
-        'TypeScript': 'Frontend/Fullstack', 'Swift': 'Mobile', 'Kotlin': 'Mobile/Backend',
-        'C++': 'System/Backend', 'C': 'System', 'Shell': 'Scripting/DevOps',
-        'Objective-C': 'Mobile', 'Scala': 'Backend/Fullstack', 'R': 'Data Science',
-        'PowerShell': 'Scripting/DevOps', 'Perl': 'Scripting/Backend', 'Lua': 'Scripting/GameDev',
-        'Rust': 'System/Backend', 'Dart': 'Mobile/Frontend', 'Assembly': 'Low-level',
-    }
 
     seen_cursos = set()
     seen_usuarios = set()
     seen_project_participants = set()
     seen_issues = set()
     seen_commits = set()
+    seen_lenguajes = set()
 
     frameworks_list = ["react", "angular", "vue", "django", "flask", "spring", "laravel", 
                        "express", "rails", ".net", "flutter", "xamarin", "asp.net", "ktor",
@@ -387,7 +481,19 @@ def analyze_repositories_detailed_and_tech(repos):
             "FechaCreacion": repo['created_at'], "FechaUltimaActualizacion": repo['updated_at'],
             "LenguajePrincipal": repo.get('language', 'N/A'), "Stars": repo.get('stargazers_count', 0),
             "Forks": repo.get('forks_count', 0), "OpenIssues": repo.get('open_issues_count', 0),
-            "FechaUltimaActividad": None # Se llenará más adelante
+            "FechaUltimaActividad": None, # Se llenará más adelante
+            "Contexto": ""  # Se llenará con el título del README
+        })
+        
+        # Extraer unidad y año del nombre del repositorio
+        unit, year = extract_unit_and_year_from_repo_name(repo_full_name)
+        
+        # Agregar información de unidad del proyecto
+        proyecto_unidades_data.append({
+            "ProyectoID": repo_id,
+            "FechaCreacion": repo['created_at'],
+            "Unidad": unit,
+            "Año": year
         })
         
         print(f"  Obteniendo issues para {repo_full_name}...")
@@ -456,11 +562,36 @@ def analyze_repositories_detailed_and_tech(repos):
         
         print(f"  Analizando tecnologías para {repo_full_name}...")
         repo_langs = analyze_repo_languages(repo) 
+        
+        # Procesar lenguajes del repositorio
         for lang, bytes_count in repo_langs.items():
             language_stats[lang] += bytes_count
-            language_project_counts[lang] += 1 
+            language_project_counts[lang] += 1
+            
+            # Crear entrada de lenguaje si no existe
+            if lang not in seen_lenguajes:
+                clasificacion = get_language_classification(lang)
+                lenguajes_data.append({
+                    "LenguajeID": lang.lower().replace(' ', '_'),
+                    "NombreLenguaje": lang,
+                    "Clasificacion": clasificacion
+                })
+                seen_lenguajes.add(lang)
+            
+            # Agregar relación proyecto-lenguaje
+            proyecto_lenguajes_data.append({
+                "ProyectoID": repo_id,
+                "LenguajeID": lang.lower().replace(' ', '_'),
+                "BytesCount": bytes_count
+            })
         
         readme_content = get_repo_readme(repo) 
+        
+        # Extraer título del README y actualizar el proyecto
+        readme_title = extract_readme_title(readme_content)
+        if readme_title:
+            # Actualizar el contexto del último proyecto agregado
+            proyectos_data[-1]["Contexto"] = readme_title 
         
         for framework in detect_tech_in_readme(readme_content, frameworks_list):
             framework_stats[framework] += 1
@@ -514,6 +645,9 @@ def analyze_repositories_detailed_and_tech(repos):
     df_colaboradores_proyecto = pd.DataFrame(colaboradores_proyecto_data)
     df_issues = pd.DataFrame(issues_data)
     df_commits = pd.DataFrame(commits_data)
+    df_lenguajes = pd.DataFrame(lenguajes_data)
+    df_proyecto_lenguajes = pd.DataFrame(proyecto_lenguajes_data)
+    df_proyecto_unidades = pd.DataFrame(proyecto_unidades_data)
     
     df_proyecto_frameworks = pd.DataFrame(proyecto_frameworks_data)
     df_proyecto_librerias = pd.DataFrame(proyecto_librerias_data)
@@ -526,6 +660,9 @@ def analyze_repositories_detailed_and_tech(repos):
         df_proyectos['FechaUltimaActualizacion'] = pd.to_datetime(df_proyectos['FechaUltimaActualizacion'], errors='coerce').dt.tz_localize(None)
         df_proyectos['FechaUltimaActividad'] = pd.to_datetime(df_proyectos['FechaUltimaActividad'], errors='coerce').dt.tz_localize(None)
 
+    if not df_proyecto_unidades.empty and 'FechaCreacion' in df_proyecto_unidades.columns:
+        df_proyecto_unidades['FechaCreacion'] = pd.to_datetime(df_proyecto_unidades['FechaCreacion'], errors='coerce').dt.tz_localize(None)
+
     if not df_issues.empty and 'FechaCreacion' in df_issues.columns:
         df_issues['FechaCreacion'] = pd.to_datetime(df_issues['FechaCreacion'], errors='coerce').dt.tz_localize(None)
         df_issues['FechaActualizacion'] = pd.to_datetime(df_issues['FechaActualizacion'], errors='coerce').dt.tz_localize(None)
@@ -534,8 +671,6 @@ def analyze_repositories_detailed_and_tech(repos):
     if not df_commits.empty and 'FechaCommit' in df_commits.columns:
         df_commits['FechaCommit'] = pd.to_datetime(df_commits['FechaCommit'], errors='coerce').dt.tz_localize(None)
 
-    # Se eliminan los dataframes de estadísticas y la escritura a Excel
-    
     return {
         "cursos": df_cursos,
         "proyectos": df_proyectos,
@@ -543,6 +678,9 @@ def analyze_repositories_detailed_and_tech(repos):
         "colaboradores_proyecto": df_colaboradores_proyecto,
         "issues": df_issues,
         "commits": df_commits,
+        "lenguajes": df_lenguajes,
+        "proyecto_lenguajes": df_proyecto_lenguajes,
+        "proyecto_unidades": df_proyecto_unidades,
         "proyecto_frameworks": df_proyecto_frameworks,
         "proyecto_librerias": df_proyecto_librerias,
         "proyecto_db": df_proyecto_db,
@@ -566,9 +704,9 @@ if __name__ == '__main__':
     print(f"Repositorios filtrados por cursos permitidos: {len(filtered_repos)}")
     
     # Limitar a los primeros 300 repositorios para la versión pequeña
-    # repos_to_analyze = filtered_repos[:300]
+    repos_to_analyze = filtered_repos[:50]
     # Para escanear TODOS los repositorios filtrados, descomenta la siguiente línea y comenta la anterior:
-    repos_to_analyze = filtered_repos
+    #repos_to_analyze = filtered_repos
     print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(filtered_repos)} filtrados.")
     
     if repos_to_analyze:
