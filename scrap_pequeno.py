@@ -256,9 +256,9 @@ def load_data_to_db(engine, data_frames):
             ("Commits", data_frames["commits"], ["CommitSHA"]),
             ("ProyectoLenguajes", data_frames["proyecto_lenguajes"], ["ProyectoID", "LenguajeID"]),
             ("ProyectoFrameworks", data_frames["proyecto_frameworks"], ["ProyectoID", "Framework"]),
-            ("ProyectoLibrerias", data_frames["proyecto_librerias"], ["ProyectoID", "Libreria"]),
+            ("ProyectoLibrerias", data_frames["proyecto_librerias"], ["ProyectoID", "Libreria", "LenguajeContexto"]),
             ("ProyectoBasesDeDatos", data_frames["proyecto_db"], ["ProyectoID", "BaseDeDatos"]),
-            ("ProyectoCICD", data_frames["proyecto_cicd"], ["ProyectoID", "HerramientaCICD"]),
+            ("ProyectoCICD", data_frames["proyecto_cicd"], ["ProyectoID", "HerramientaCI_CD"]),
         ]
 
         for name, df, unique_cols in remaining_tables:
@@ -274,8 +274,10 @@ def load_data_to_db(engine, data_frames):
                     df_to_insert = df[~df[unique_cols[0]].isin(existing_ids)]
                 # Para tablas relacionales con claves compuestas
                 else:
+                    # Crear una copia del DataFrame para evitar modificar el original
+                    df_copy = df.copy()
                     # Crear una columna temporal para comparación
-                    df['_temp_key'] = df[unique_cols].apply(lambda row: tuple(row), axis=1)
+                    df_copy['_temp_key'] = df_copy[unique_cols].apply(lambda row: tuple(row), axis=1)
                     
                     # Obtener registros existentes
                     cols_str = ', '.join(unique_cols)
@@ -283,7 +285,7 @@ def load_data_to_db(engine, data_frames):
                     existing_keys = {tuple(row) for row in existing_result.fetchall()}
                     
                     # Filtrar registros que no existen
-                    df_to_insert = df[~df['_temp_key'].isin(existing_keys)]
+                    df_to_insert = df_copy[~df_copy['_temp_key'].isin(existing_keys)]
                     df_to_insert = df_to_insert.drop(columns=['_temp_key'])
                 
                 if df_to_insert.empty:
