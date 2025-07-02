@@ -126,12 +126,12 @@ def get_entity_keys(table_name, row):
     return pk, rk
 
 def load_data_to_db(engine, data_frames):
-    """Carga los DataFrames en la base de datos en el orden correcto."""
+    """Carga los DataFrames en la base de datos en el orden correcto, evitando duplicados."""
     # Primero cargar las tablas de referencia
     reference_tables = [
-        ("Cursos", data_frames["cursos"]),
-        ("Lenguajes", data_frames["lenguajes"]),
-        ("Usuarios", data_frames["usuarios"]),
+        ("Cursos", data_frames["cursos"], "CursoID"),
+        ("Lenguajes", data_frames["lenguajes"], "LenguajeID"),
+        ("Usuarios", data_frames["usuarios"], "UsuarioID"),
     ]
     
     # Luego cargar fechas y mapear IDs
@@ -140,14 +140,26 @@ def load_data_to_db(engine, data_frames):
     
     with engine.connect() as connection:
         # Cargar tablas de referencia primero
-        for name, df in reference_tables:
+        for name, df, primary_key in reference_tables:
             if df.empty:
                 print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
                 continue
-            print(f"Cargando {len(df)} filas en la tabla {name}...")
+            
+            # Verificar qué registros ya existen
             try:
-                dtype_mapping = {c: types.TEXT for c in df.columns if df[c].dtype == 'object'}
-                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                existing_result = connection.execute(sqlalchemy.text(f"SELECT {primary_key} FROM {name}"))
+                existing_ids = {row[0] for row in existing_result.fetchall()}
+                
+                # Filtrar solo los registros que no existen
+                df_to_insert = df[~df[primary_key].isin(existing_ids)]
+                
+                if df_to_insert.empty:
+                    print(f"Todos los registros de {name} ya existen. Omitiendo carga.")
+                    continue
+                    
+                print(f"Cargando {len(df_to_insert)} filas nuevas en la tabla {name}...")
+                dtype_mapping = {c: types.TEXT for c in df_to_insert.columns if df_to_insert[c].dtype == 'object'}
+                df_to_insert.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                 print(f"  Carga para {name} completada.")
             except Exception as e:
                 print(f"Error al cargar datos en la tabla {name}: {e}")
@@ -156,21 +168,26 @@ def load_data_to_db(engine, data_frames):
         # Manejar la carga de fechas y mapeo de IDs
         fecha_id_mapping = {}
         if not fechas_df.empty:
-            # Primero, eliminar duplicados en las fechas
-            fechas_df_clean = fechas_df.drop_duplicates(subset=['Año', 'Mes'])
-            print(f"Cargando {len(fechas_df_clean)} filas únicas en la tabla FechasCreacion...")
             try:
-                # Insertar fechas sin el campo ID (se asigna automáticamente)
-                dtype_mapping = {c: types.TEXT for c in fechas_df_clean.columns if fechas_df_clean[c].dtype == 'object'}
-                fechas_df_clean.to_sql("FechasCreacion", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
-                print(f"  Carga para FechasCreacion completada.")
+                # Verificar qué fechas ya existen
+                existing_result = connection.execute(sqlalchemy.text("SELECT FechaCreacionID, Año, Mes FROM FechasCreacion"))
+                existing_fechas = {(row[1], row[2]): row[0] for row in existing_result.fetchall()}
                 
-                # Recuperar todos los IDs (incluidos los que ya existían antes)
-                result = connection.execute(sqlalchemy.text("SELECT FechaCreacionID, Año, Mes FROM FechasCreacion ORDER BY FechaCreacionID"))
-                rows = result.fetchall()
-                for row in rows:
-                    fecha_key = (row[1], row[2])  # (Año, Mes)
-                    fecha_id_mapping[fecha_key] = row[0]  # FechaCreacionID
+                # Filtrar solo las fechas que no existen
+                fechas_df_clean = fechas_df.drop_duplicates(subset=['Año', 'Mes'])
+                fechas_to_insert = fechas_df_clean[~fechas_df_clean.apply(lambda row: (row['Año'], row['Mes']) in existing_fechas, axis=1)]
+                
+                if not fechas_to_insert.empty:
+                    print(f"Cargando {len(fechas_to_insert)} fechas nuevas en la tabla FechasCreacion...")
+                    dtype_mapping = {c: types.TEXT for c in fechas_to_insert.columns if fechas_to_insert[c].dtype == 'object'}
+                    fechas_to_insert.to_sql("FechasCreacion", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                    print(f"  Carga para FechasCreacion completada.")
+                else:
+                    print("Todas las fechas ya existen en la tabla FechasCreacion.")
+                
+                # Obtener el mapping completo de fechas (existentes + nuevas)
+                updated_result = connection.execute(sqlalchemy.text("SELECT FechaCreacionID, Año, Mes FROM FechasCreacion"))
+                fecha_id_mapping = {(row[1], row[2]): row[0] for row in updated_result.fetchall()}
                 
                 print(f"  Mapeados {len(fecha_id_mapping)} IDs de fechas.")
                 
@@ -180,66 +197,104 @@ def load_data_to_db(engine, data_frames):
         
         # Actualizar proyectos con los IDs de fecha correctos
         if not proyectos_df.empty:
-            print("Actualizando FechaCreacionID en proyectos...")
-            for idx, row in proyectos_df.iterrows():
-                fecha_key = row.get('_fecha_key')
-                if fecha_key and fecha_key in fecha_id_mapping:
-                    proyectos_df.at[idx, 'FechaCreacionID'] = fecha_id_mapping[fecha_key]
-            
-            # Eliminar la columna temporal
-            if '_fecha_key' in proyectos_df.columns:
-                proyectos_df = proyectos_df.drop(columns=['_fecha_key'])
-            
-            print(f"Cargando {len(proyectos_df)} filas en la tabla Proyectos...")
+            # Verificar qué proyectos ya existen
             try:
-                dtype_mapping = {c: types.TEXT for c in proyectos_df.columns if proyectos_df[c].dtype == 'object'}
-                proyectos_df.to_sql("Proyectos", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
-                print(f"  Carga para Proyectos completada.")
+                existing_result = connection.execute(sqlalchemy.text("SELECT ProyectoID FROM Proyectos"))
+                existing_proyectos = {row[0] for row in existing_result.fetchall()}
+                
+                # Filtrar solo los proyectos que no existen
+                proyectos_to_insert = proyectos_df[~proyectos_df['ProyectoID'].isin(existing_proyectos)]
+                
+                if proyectos_to_insert.empty:
+                    print("Todos los proyectos ya existen en la tabla Proyectos.")
+                else:
+                    print("Actualizando FechaCreacionID en proyectos...")
+                    for idx, row in proyectos_to_insert.iterrows():
+                        fecha_key = row.get('_fecha_key')
+                        if fecha_key and fecha_key in fecha_id_mapping:
+                            proyectos_to_insert.at[idx, 'FechaCreacionID'] = fecha_id_mapping[fecha_key]
+                    
+                    # Eliminar la columna temporal
+                    if '_fecha_key' in proyectos_to_insert.columns:
+                        proyectos_to_insert = proyectos_to_insert.drop(columns=['_fecha_key'])
+                    
+                    print(f"Cargando {len(proyectos_to_insert)} proyectos nuevos en la tabla Proyectos...")
+                    dtype_mapping = {c: types.TEXT for c in proyectos_to_insert.columns if proyectos_to_insert[c].dtype == 'object'}
+                    proyectos_to_insert.to_sql("Proyectos", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                    print(f"  Carga para Proyectos completada.")
             except Exception as e:
                 print(f"Error al cargar datos en la tabla Proyectos: {e}")
                 raise
         
-        # Cargar el resto de las tablas
+        # Ahora cargar ProyectoUnidades (que depende de Proyectos)
+        proyecto_unidades_df = data_frames["proyecto_unidades"]
+        if not proyecto_unidades_df.empty:
+            try:
+                # Verificar qué proyectos ya tienen unidades asignadas
+                existing_result = connection.execute(sqlalchemy.text("SELECT ProyectoID FROM ProyectoUnidades"))
+                existing_proyecto_unidades = {row[0] for row in existing_result.fetchall()}
+                
+                # Eliminar duplicados y filtrar solo los que no existen
+                proyecto_unidades_df_clean = proyecto_unidades_df.drop_duplicates(subset=['ProyectoID'])
+                proyecto_unidades_to_insert = proyecto_unidades_df_clean[~proyecto_unidades_df_clean['ProyectoID'].isin(existing_proyecto_unidades)]
+                
+                if proyecto_unidades_to_insert.empty:
+                    print("Todos los proyectos ya tienen unidades asignadas en ProyectoUnidades.")
+                else:
+                    print(f"Cargando {len(proyecto_unidades_to_insert)} registros nuevos en la tabla ProyectoUnidades...")
+                    dtype_mapping = {c: types.TEXT for c in proyecto_unidades_to_insert.columns if proyecto_unidades_to_insert[c].dtype == 'object'}
+                    proyecto_unidades_to_insert.to_sql("ProyectoUnidades", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                    print(f"  Carga para ProyectoUnidades completada.")
+            except Exception as e:
+                print(f"Error al cargar datos en la tabla ProyectoUnidades: {e}")
+                raise
+        
+        # Cargar el resto de las tablas con verificación de duplicados
         remaining_tables = [
-            ("ProyectoUnidades", data_frames["proyecto_unidades"]),
-            ("ColaboradoresPorProyecto", data_frames["colaboradores_proyecto"]),
-            ("Issues", data_frames["issues"]),
-            ("Commits", data_frames["commits"]),
-            ("ProyectoLenguajes", data_frames["proyecto_lenguajes"]),
-            ("ProyectoFrameworks", data_frames["proyecto_frameworks"]),
-            ("ProyectoLibrerias", data_frames["proyecto_librerias"]),
-            ("ProyectoBasesDeDatos", data_frames["proyecto_db"]),
-            ("ProyectoCICD", data_frames["proyecto_cicd"]),
+            ("ColaboradoresPorProyecto", data_frames["colaboradores_proyecto"], ["ProyectoID", "UsuarioID"]),
+            ("Issues", data_frames["issues"], ["IssueID"]),
+            ("Commits", data_frames["commits"], ["CommitID"]),
+            ("ProyectoLenguajes", data_frames["proyecto_lenguajes"], ["ProyectoID", "LenguajeID"]),
+            ("ProyectoFrameworks", data_frames["proyecto_frameworks"], ["ProyectoID", "Framework"]),
+            ("ProyectoLibrerias", data_frames["proyecto_librerias"], ["ProyectoID", "Libreria"]),
+            ("ProyectoBasesDeDatos", data_frames["proyecto_db"], ["ProyectoID", "BaseDeDatos"]),
+            ("ProyectoCICD", data_frames["proyecto_cicd"], ["ProyectoID", "HerramientaCICD"]),
         ]
 
-        for name, df in remaining_tables:
+        for name, df, unique_cols in remaining_tables:
             if df.empty:
                 print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
                 continue
-            print(f"Cargando {len(df)} filas en la tabla {name}...")
+            
             try:
-                # Mapeo explícito de tipos de datos de objeto (string) a TEXT.
-                # Esto se traduce a NVARCHAR(MAX) en SQL Server, evitando errores de
-                # "String data, right truncation" de forma definitiva.
-                dtype_mapping = {c: types.TEXT for c in df.columns if df[c].dtype == 'object'}
+                # Para tablas con claves primarias simples
+                if len(unique_cols) == 1 and unique_cols[0] in ['IssueID', 'CommitID']:
+                    existing_result = connection.execute(sqlalchemy.text(f"SELECT {unique_cols[0]} FROM {name}"))
+                    existing_ids = {row[0] for row in existing_result.fetchall()}
+                    df_to_insert = df[~df[unique_cols[0]].isin(existing_ids)]
+                # Para tablas relacionales con claves compuestas
+                else:
+                    # Crear una columna temporal para comparación
+                    df['_temp_key'] = df[unique_cols].apply(lambda row: tuple(row), axis=1)
+                    
+                    # Obtener registros existentes
+                    cols_str = ', '.join(unique_cols)
+                    existing_result = connection.execute(sqlalchemy.text(f"SELECT {cols_str} FROM {name}"))
+                    existing_keys = {tuple(row) for row in existing_result.fetchall()}
+                    
+                    # Filtrar registros que no existen
+                    df_to_insert = df[~df['_temp_key'].isin(existing_keys)]
+                    df_to_insert = df_to_insert.drop(columns=['_temp_key'])
                 
-                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
-                print(f"  Carga para {name} completada.")
-            except Exception as e:
-                print(f"Error al cargar datos en la tabla {name}: {e}")
-                raise
-            if df.empty:
-                print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
-                continue
-            print(f"Cargando {len(df)} filas en la tabla {name}...")
-            try:
-                # Mapeo explícito de tipos de datos de objeto (string) a TEXT.
-                # Esto se traduce a NVARCHAR(MAX) en SQL Server, evitando errores de
-                # "String data, right truncation" de forma definitiva.
-                dtype_mapping = {c: types.TEXT for c in df.columns if df[c].dtype == 'object'}
+                if df_to_insert.empty:
+                    print(f"Todos los registros de {name} ya existen. Omitiendo carga.")
+                    continue
                 
-                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                print(f"Cargando {len(df_to_insert)} registros nuevos en la tabla {name}...")
+                dtype_mapping = {c: types.TEXT for c in df_to_insert.columns if df_to_insert[c].dtype == 'object'}
+                df_to_insert.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                 print(f"  Carga para {name} completada.")
+                
             except Exception as e:
                 print(f"Error al cargar datos en la tabla {name}: {e}")
                 raise
