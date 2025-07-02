@@ -127,25 +127,107 @@ def get_entity_keys(table_name, row):
 
 def load_data_to_db(engine, data_frames):
     """Carga los DataFrames en la base de datos en el orden correcto."""
-    load_order = [
+    # Primero cargar las tablas de referencia
+    reference_tables = [
         ("Cursos", data_frames["cursos"]),
         ("Lenguajes", data_frames["lenguajes"]),
-        ("FechasCreacion", data_frames["fechas_creacion"]),
         ("Usuarios", data_frames["usuarios"]),
-        ("Proyectos", data_frames["proyectos"]),
-        ("ProyectoUnidades", data_frames["proyecto_unidades"]),
-        ("ColaboradoresPorProyecto", data_frames["colaboradores_proyecto"]),
-        ("Issues", data_frames["issues"]),
-        ("Commits", data_frames["commits"]),
-        ("ProyectoLenguajes", data_frames["proyecto_lenguajes"]),
-        ("ProyectoFrameworks", data_frames["proyecto_frameworks"]),
-        ("ProyectoLibrerias", data_frames["proyecto_librerias"]),
-        ("ProyectoBasesDeDatos", data_frames["proyecto_db"]),
-        ("ProyectoCICD", data_frames["proyecto_cicd"]),
     ]
-
+    
+    # Luego cargar fechas y mapear IDs
+    fechas_df = data_frames["fechas_creacion"]
+    proyectos_df = data_frames["proyectos"]
+    
     with engine.connect() as connection:
-        for name, df in load_order:
+        # Cargar tablas de referencia primero
+        for name, df in reference_tables:
+            if df.empty:
+                print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
+                continue
+            print(f"Cargando {len(df)} filas en la tabla {name}...")
+            try:
+                dtype_mapping = {c: types.TEXT for c in df.columns if df[c].dtype == 'object'}
+                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                print(f"  Carga para {name} completada.")
+            except Exception as e:
+                print(f"Error al cargar datos en la tabla {name}: {e}")
+                raise
+        
+        # Manejar la carga de fechas y mapeo de IDs
+        fecha_id_mapping = {}
+        if not fechas_df.empty:
+            # Primero, eliminar duplicados en las fechas
+            fechas_df_clean = fechas_df.drop_duplicates(subset=['Año', 'Mes'])
+            print(f"Cargando {len(fechas_df_clean)} filas únicas en la tabla FechasCreacion...")
+            try:
+                # Insertar fechas sin el campo ID (se asigna automáticamente)
+                dtype_mapping = {c: types.TEXT for c in fechas_df_clean.columns if fechas_df_clean[c].dtype == 'object'}
+                fechas_df_clean.to_sql("FechasCreacion", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                print(f"  Carga para FechasCreacion completada.")
+                
+                # Recuperar todos los IDs (incluidos los que ya existían antes)
+                result = connection.execute(sqlalchemy.text("SELECT FechaCreacionID, Año, Mes FROM FechasCreacion ORDER BY FechaCreacionID"))
+                rows = result.fetchall()
+                for row in rows:
+                    fecha_key = (row[1], row[2])  # (Año, Mes)
+                    fecha_id_mapping[fecha_key] = row[0]  # FechaCreacionID
+                
+                print(f"  Mapeados {len(fecha_id_mapping)} IDs de fechas.")
+                
+            except Exception as e:
+                print(f"Error al cargar datos en la tabla FechasCreacion: {e}")
+                raise
+        
+        # Actualizar proyectos con los IDs de fecha correctos
+        if not proyectos_df.empty:
+            print("Actualizando FechaCreacionID en proyectos...")
+            for idx, row in proyectos_df.iterrows():
+                fecha_key = row.get('_fecha_key')
+                if fecha_key and fecha_key in fecha_id_mapping:
+                    proyectos_df.at[idx, 'FechaCreacionID'] = fecha_id_mapping[fecha_key]
+            
+            # Eliminar la columna temporal
+            if '_fecha_key' in proyectos_df.columns:
+                proyectos_df = proyectos_df.drop(columns=['_fecha_key'])
+            
+            print(f"Cargando {len(proyectos_df)} filas en la tabla Proyectos...")
+            try:
+                dtype_mapping = {c: types.TEXT for c in proyectos_df.columns if proyectos_df[c].dtype == 'object'}
+                proyectos_df.to_sql("Proyectos", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                print(f"  Carga para Proyectos completada.")
+            except Exception as e:
+                print(f"Error al cargar datos en la tabla Proyectos: {e}")
+                raise
+        
+        # Cargar el resto de las tablas
+        remaining_tables = [
+            ("ProyectoUnidades", data_frames["proyecto_unidades"]),
+            ("ColaboradoresPorProyecto", data_frames["colaboradores_proyecto"]),
+            ("Issues", data_frames["issues"]),
+            ("Commits", data_frames["commits"]),
+            ("ProyectoLenguajes", data_frames["proyecto_lenguajes"]),
+            ("ProyectoFrameworks", data_frames["proyecto_frameworks"]),
+            ("ProyectoLibrerias", data_frames["proyecto_librerias"]),
+            ("ProyectoBasesDeDatos", data_frames["proyecto_db"]),
+            ("ProyectoCICD", data_frames["proyecto_cicd"]),
+        ]
+
+        for name, df in remaining_tables:
+            if df.empty:
+                print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
+                continue
+            print(f"Cargando {len(df)} filas en la tabla {name}...")
+            try:
+                # Mapeo explícito de tipos de datos de objeto (string) a TEXT.
+                # Esto se traduce a NVARCHAR(MAX) en SQL Server, evitando errores de
+                # "String data, right truncation" de forma definitiva.
+                dtype_mapping = {c: types.TEXT for c in df.columns if df[c].dtype == 'object'}
+                
+                df.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
+                print(f"  Carga para {name} completada.")
+            except Exception as e:
+                print(f"Error al cargar datos en la tabla {name}: {e}")
+                raise
             if df.empty:
                 print(f"DataFrame para la tabla {name} está vacío. Omitiendo carga.")
                 continue
@@ -489,25 +571,27 @@ def analyze_repositories_detailed_and_tech(repos):
             # Verificar si ya existe esta combinación de año/mes
             fecha_key = (creation_year, creation_month)
             if fecha_key not in seen_fechas_creacion:
-                # Crear nueva entrada de fecha
-                fecha_creacion_id = len(fechas_creacion_data) + 1
+                # Crear nueva entrada de fecha (sin ID, se asignará automáticamente)
                 fechas_creacion_data.append({
-                    "FechaCreacionID": fecha_creacion_id,
                     "Año": creation_year,
                     "Mes": creation_month
                 })
-                seen_fechas_creacion[fecha_key] = fecha_creacion_id
+                # Guardamos la posición temporal para mapear después
+                seen_fechas_creacion[fecha_key] = len(fechas_creacion_data) - 1
+                fecha_creacion_id = None  # Se asignará después de la inserción
             else:
-                fecha_creacion_id = seen_fechas_creacion[fecha_key]
+                fecha_creacion_id = None  # Se mapeará después
 
         proyectos_data.append({
             "ProyectoID": repo_id, "NombreProyecto": repo['name'], "RepoFullName": repo_full_name,
-            "CursoID": curso_id, "FechaCreacionID": fecha_creacion_id, "Descripcion": repo['description'], 
+            "CursoID": curso_id, "FechaCreacionID": None,  # Se asignará después de insertar fechas
+            "Descripcion": repo['description'], 
             "URLRepositorio": repo['html_url'], "FechaCreacion": repo['created_at'], 
             "FechaUltimaActualizacion": repo['updated_at'], "Stars": repo.get('stargazers_count', 0),
             "Forks": repo.get('forks_count', 0), "OpenIssues": repo.get('open_issues_count', 0),
             "FechaUltimaActividad": None, # Se llenará más adelante
-            "Contexto": ""  # Se llenará con el título del README
+            "Contexto": "",  # Se llenará con el título del README
+            "_fecha_key": (creation_year, creation_month) if creation_year and creation_month else None  # Campo temporal para mapeo
         })
         
         # Extraer unidad y año del nombre del repositorio
