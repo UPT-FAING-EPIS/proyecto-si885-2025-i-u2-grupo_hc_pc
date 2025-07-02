@@ -253,7 +253,7 @@ def load_data_to_db(engine, data_frames):
         remaining_tables = [
             ("ColaboradoresPorProyecto", data_frames["colaboradores_proyecto"], ["ProyectoID", "UsuarioID"]),
             ("Issues", data_frames["issues"], ["IssueID"]),
-            ("Commits", data_frames["commits"], ["CommitID"]),
+            ("Commits", data_frames["commits"], ["CommitSHA"]),
             ("ProyectoLenguajes", data_frames["proyecto_lenguajes"], ["ProyectoID", "LenguajeID"]),
             ("ProyectoFrameworks", data_frames["proyecto_frameworks"], ["ProyectoID", "Framework"]),
             ("ProyectoLibrerias", data_frames["proyecto_librerias"], ["ProyectoID", "Libreria"]),
@@ -268,7 +268,7 @@ def load_data_to_db(engine, data_frames):
             
             try:
                 # Para tablas con claves primarias simples
-                if len(unique_cols) == 1 and unique_cols[0] in ['IssueID', 'CommitID']:
+                if len(unique_cols) == 1 and unique_cols[0] in ['IssueID', 'CommitSHA']:
                     existing_result = connection.execute(sqlalchemy.text(f"SELECT {unique_cols[0]} FROM {name}"))
                     existing_ids = {row[0] for row in existing_result.fetchall()}
                     df_to_insert = df[~df[unique_cols[0]].isin(existing_ids)]
