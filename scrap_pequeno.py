@@ -303,8 +303,23 @@ def load_data_to_db(engine, data_frames):
                 continue
             
             try:
+                # Lógica especial para ProyectoBasesDeDatos - solo una base de datos por proyecto
+                if name == "ProyectoBasesDeDatos":
+                    # Verificar qué proyectos ya tienen una base de datos asignada
+                    existing_result = connection.execute(sqlalchemy.text("SELECT ProyectoID FROM ProyectoBasesDeDatos"))
+                    existing_project_dbs = {row[0] for row in existing_result.fetchall()}
+                    
+                    # Filtrar solo proyectos que no tienen base de datos asignada
+                    df_to_insert = df[~df['ProyectoID'].isin(existing_project_dbs)]
+                    
+                    if not df_to_insert.empty:
+                        print(f"Proyectos sin base de datos asignada: {len(df_to_insert)}")
+                        # Agrupar por ProyectoID y tomar solo la primera base de datos de cada proyecto
+                        df_to_insert = df_to_insert.groupby('ProyectoID').first().reset_index()
+                        print(f"Después de aplicar una BD por proyecto: {len(df_to_insert)}")
+                
                 # Para tablas con claves primarias simples
-                if len(unique_cols) == 1 and unique_cols[0] in ['IssueID', 'CommitSHA']:
+                elif len(unique_cols) == 1 and unique_cols[0] in ['IssueID', 'CommitSHA']:
                     existing_result = connection.execute(sqlalchemy.text(f"SELECT {unique_cols[0]} FROM {name}"))
                     existing_ids = {row[0] for row in existing_result.fetchall()}
                     df_to_insert = df[~df[unique_cols[0]].isin(existing_ids)]
@@ -609,6 +624,7 @@ def analyze_repositories_detailed_and_tech(repos):
     seen_commits = set()
     seen_lenguajes = set()
     seen_fechas_creacion = {}  # Diccionario para mapear (año, mes) -> ID
+    seen_project_databases = set()  # Para rastrear proyectos que ya tienen una base de datos
 
     frameworks_list = ["react", "angular", "vue", "django", "flask", "spring", "laravel", 
                        "express", "rails", ".net", "flutter", "xamarin", "asp.net", "ktor",
@@ -841,9 +857,18 @@ def analyze_repositories_detailed_and_tech(repos):
             library_stats[f"{prefix}:{library.lower()}"] += 1
             proyecto_librerias_data.append({"ProyectoID": repo_id, "Libreria": library.lower(), "LenguajeContexto": prefix})
 
-        for db in detect_tech_in_readme(readme_content, databases_list):
-            db_stats[db] += 1
-            proyecto_db_data.append({"ProyectoID": repo_id, "BaseDeDatos": db})
+        # Detectar base de datos principal (solo una por proyecto)
+        if repo_id not in seen_project_databases:
+            primary_db = detect_primary_database(readme_content, databases_list)
+            if primary_db:
+                db_stats[primary_db] += 1
+                proyecto_db_data.append({"ProyectoID": repo_id, "BaseDeDatos": primary_db})
+                seen_project_databases.add(repo_id)
+                print(f"    Base de datos principal detectada para proyecto {repo_id}: {primary_db}")
+            else:
+                print(f"    No se detectaron bases de datos en el README del proyecto {repo_id}")
+        else:
+            print(f"    Proyecto {repo_id} ya tiene una base de datos asignada.")
 
         for ci_cd_tool in detect_tech_in_readme(readme_content, ci_cd_tools_list):
             ci_cd_stats[ci_cd_tool] += 1
@@ -965,6 +990,39 @@ def verify_database_connection(engine):
     except Exception as e:
         print(f"Error de conectividad: {e}")
         raise
+
+def detect_primary_database(readme_content, databases_list):
+    """
+    Detectar la base de datos principal de un repositorio.
+    Retorna solo una base de datos, priorizando por orden de importancia.
+    """
+    if not readme_content:
+        return None
+    
+    # Orden de prioridad para bases de datos (las más específicas primero)
+    priority_databases = [
+        "postgresql", "mysql", "mongodb", "sqlserver", "oracle", 
+        "sqlite", "mariadb", "redis", "firebase", "cosmosdb",
+        "cassandra", "dynamodb", "neo4j", "elasticsearch",
+        "couchdb", "rethinkdb", "arangodb", "supabase"
+    ]
+    
+    detected_databases = []
+    for db in databases_list:
+        if re.search(r'\b' + re.escape(db.lower()) + r'\b', readme_content):
+            detected_databases.append(db)
+    
+    if not detected_databases:
+        return None
+    
+    # Retornar la base de datos con mayor prioridad
+    for priority_db in priority_databases:
+        for detected_db in detected_databases:
+            if priority_db.lower() == detected_db.lower():
+                return detected_db
+    
+    # Si no hay coincidencias de prioridad, retornar la primera detectada
+    return detected_databases[0]
 
 if __name__ == '__main__':
     # --- Ejecución del análisis para un subconjunto de repositorios ---
