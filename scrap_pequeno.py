@@ -28,8 +28,21 @@ def get_db_engine():
     db_username = os.getenv("DB_USERNAME")
     db_password = os.getenv("DB_PASSWORD")
     
+    print(f"Configuración de conexión:")
+    print(f"  Servidor: {db_server}")
+    print(f"  Base de datos: {db_database}")
+    print(f"  Usuario: {db_username}")
+    print(f"  Token GitHub configurado: {'Sí' if GITHUB_TOKEN else 'No'}")
+    
     if not all([db_server, db_database, db_username, db_password, GITHUB_TOKEN]):
-        raise ValueError("Una o más variables de entorno requeridas no están configuradas (GITHUB_TOKEN, DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD)")
+        missing_vars = []
+        if not GITHUB_TOKEN: missing_vars.append("GITHUB_TOKEN")
+        if not db_server: missing_vars.append("DB_SERVER")
+        if not db_database: missing_vars.append("DB_DATABASE")
+        if not db_username: missing_vars.append("DB_USERNAME")
+        if not db_password: missing_vars.append("DB_PASSWORD")
+        
+        raise ValueError(f"Variables de entorno faltantes: {', '.join(missing_vars)}")
 
     driver = '{ODBC Driver 18 for SQL Server}'
     params = urllib.parse.quote_plus(
@@ -44,8 +57,10 @@ def get_db_engine():
     )
     
     conn_str = f"mssql+pyodbc:///?odbc_connect={params}"
+    print(f"Cadena de conexión creada (sin credenciales): mssql+pyodbc:///?odbc_connect=DRIVER={{ODBC Driver 18 for SQL Server}};SERVER=tcp:{db_server},1433;DATABASE={db_database};...")
+    
     # Se deshabilita fast_executemany para evitar errores de truncamiento de pyodbc.
-    engine = create_engine(conn_str)
+    engine = create_engine(conn_str, echo=False)  # Cambiar echo=True para debug de SQL
     return engine
 
 def create_database_schema(engine):
@@ -138,7 +153,8 @@ def load_data_to_db(engine, data_frames):
     fechas_df = data_frames["fechas_creacion"]
     proyectos_df = data_frames["proyectos"]
     
-    with engine.connect() as connection:
+    # Usar transacción explícita para asegurar que todos los datos se confirmen
+    with engine.begin() as connection:
         # Cargar tablas de referencia primero
         for name, df, primary_key in reference_tables:
             if df.empty:
@@ -161,6 +177,11 @@ def load_data_to_db(engine, data_frames):
                 dtype_mapping = {c: types.TEXT for c in df_to_insert.columns if df_to_insert[c].dtype == 'object'}
                 df_to_insert.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                 print(f"  Carga para {name} completada.")
+                print(f"  Verificando inserción en {name}...")
+                # Verificar que los datos se insertaron correctamente
+                verify_result = connection.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {name}"))
+                total_count = verify_result.scalar()
+                print(f"  Total de registros en {name}: {total_count}")
             except Exception as e:
                 print(f"Error al cargar datos en la tabla {name}: {e}")
                 raise
@@ -182,6 +203,11 @@ def load_data_to_db(engine, data_frames):
                     dtype_mapping = {c: types.TEXT for c in fechas_to_insert.columns if fechas_to_insert[c].dtype == 'object'}
                     fechas_to_insert.to_sql("FechasCreacion", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                     print(f"  Carga para FechasCreacion completada.")
+                    
+                    # Verificar que los datos se insertaron correctamente
+                    verify_result = connection.execute(sqlalchemy.text("SELECT COUNT(*) FROM FechasCreacion"))
+                    total_count = verify_result.scalar()
+                    print(f"  Total de registros en FechasCreacion: {total_count}")
                 else:
                     print("Todas las fechas ya existen en la tabla FechasCreacion.")
                 
@@ -222,6 +248,11 @@ def load_data_to_db(engine, data_frames):
                     dtype_mapping = {c: types.TEXT for c in proyectos_to_insert.columns if proyectos_to_insert[c].dtype == 'object'}
                     proyectos_to_insert.to_sql("Proyectos", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                     print(f"  Carga para Proyectos completada.")
+                    
+                    # Verificar que los datos se insertaron correctamente
+                    verify_result = connection.execute(sqlalchemy.text("SELECT COUNT(*) FROM Proyectos"))
+                    total_count = verify_result.scalar()
+                    print(f"  Total de registros en Proyectos: {total_count}")
             except Exception as e:
                 print(f"Error al cargar datos en la tabla Proyectos: {e}")
                 raise
@@ -245,6 +276,11 @@ def load_data_to_db(engine, data_frames):
                     dtype_mapping = {c: types.TEXT for c in proyecto_unidades_to_insert.columns if proyecto_unidades_to_insert[c].dtype == 'object'}
                     proyecto_unidades_to_insert.to_sql("ProyectoUnidades", con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                     print(f"  Carga para ProyectoUnidades completada.")
+                    
+                    # Verificar que los datos se insertaron correctamente
+                    verify_result = connection.execute(sqlalchemy.text("SELECT COUNT(*) FROM ProyectoUnidades"))
+                    total_count = verify_result.scalar()
+                    print(f"  Total de registros en ProyectoUnidades: {total_count}")
             except Exception as e:
                 print(f"Error al cargar datos en la tabla ProyectoUnidades: {e}")
                 raise
@@ -297,9 +333,17 @@ def load_data_to_db(engine, data_frames):
                 df_to_insert.to_sql(name, con=connection, if_exists='append', index=False, chunksize=200, dtype=dtype_mapping)
                 print(f"  Carga para {name} completada.")
                 
+                # Verificar que los datos se insertaron correctamente
+                verify_result = connection.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {name}"))
+                total_count = verify_result.scalar()
+                print(f"  Total de registros en {name}: {total_count}")
+                
             except Exception as e:
                 print(f"Error al cargar datos en la tabla {name}: {e}")
                 raise
+        
+        print("Confirmando transacción...")
+        print("Todos los datos han sido cargados y confirmados exitosamente.")
 
 def get_paginated_data(url, params=None, max_retries=3, backoff_factor=0.3):
     """Obtener datos paginados de la API de GitHub con reintentos."""
@@ -892,6 +936,36 @@ def extract_year_and_month_from_date(date_string):
     except:
         return None, None
 
+def verify_database_connection(engine):
+    """Verificar la conectividad y el estado de la base de datos."""
+    try:
+        with engine.connect() as connection:
+            # Verificar conectividad básica
+            result = connection.execute(sqlalchemy.text("SELECT 1"))
+            test_value = result.scalar()
+            print(f"Conectividad verificada: {test_value}")
+            
+            # Verificar si las tablas existen
+            tables_to_check = [
+                "Cursos", "Lenguajes", "Usuarios", "FechasCreacion", "Proyectos", 
+                "ProyectoUnidades", "ColaboradoresPorProyecto", "Issues", "Commits",
+                "ProyectoLenguajes", "ProyectoFrameworks", "ProyectoLibrerias",
+                "ProyectoBasesDeDatos", "ProyectoCICD"
+            ]
+            
+            print("\nVerificando existencia de tablas:")
+            for table in tables_to_check:
+                try:
+                    result = connection.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {table}"))
+                    count = result.scalar()
+                    print(f"  {table}: {count} registros")
+                except Exception as e:
+                    print(f"  {table}: Error - {e}")
+                    
+    except Exception as e:
+        print(f"Error de conectividad: {e}")
+        raise
+
 if __name__ == '__main__':
     # --- Ejecución del análisis para un subconjunto de repositorios ---
     all_repos = get_all_repos(ORG_NAME)
@@ -919,15 +993,24 @@ if __name__ == '__main__':
             db_engine = get_db_engine()
             print("Conexión a la base de datos establecida.")
             
-            print("Creando esquema de la base de datos...")
+            # Verificar conectividad antes de proceder
+            print("\nVerificando conectividad de la base de datos...")
+            verify_database_connection(db_engine)
+            
+            print("\nCreando esquema de la base de datos...")
             create_database_schema(db_engine)
             
-            print("Cargando nuevos datos a la base de datos...")
+            print("\nCargando nuevos datos a la base de datos...")
             load_data_to_db(db_engine, data_frames)
             
-            print("Proceso ETL completado exitosamente.")
+            print("\nVerificando datos después de la carga...")
+            verify_database_connection(db_engine)
+            
+            print("\nProceso ETL completado exitosamente.")
         except Exception as e:
             print(f"Ocurrió un error durante el proceso ETL: {e}")
+            import traceback
+            traceback.print_exc()
             sys.exit(1) # Salir con un código de error para que el pipeline falle
     else:
         print("No hay repositorios para analizar después de aplicar el límite.")
