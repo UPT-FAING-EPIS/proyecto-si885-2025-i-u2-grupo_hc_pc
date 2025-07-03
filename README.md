@@ -143,4 +143,4 @@ sequenceDiagram
 
 *Aquí se puede colocar el enlace público al dashboard de Power BI una vez que esté disponible.*
 
-[\[Enlace al Dashboard de Power BI\]](https://app.powerbi.com/groups/me/reports/cab49dea-df13-4d2b-8528-d637cfefa648?ctid=b6b466ee-468d-4011-b9fc-fbdcf82ac90a&pbi_source=linkShare)
+[\[Enlace al Dashboard de Power BI\]](https://app.powerbi.com/links/eSOGnu0Qt-?ctid=b6b466ee-468d-4011-b9fc-fbdcf82ac90a&pbi_source=linkShare)
