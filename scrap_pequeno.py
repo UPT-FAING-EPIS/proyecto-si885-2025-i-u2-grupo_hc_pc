@@ -908,9 +908,9 @@ if __name__ == '__main__':
     print(f"Repositorios filtrados por cursos permitidos: {len(filtered_repos)}")
     
     # Limitar a los primeros 300 repositorios para la versión pequeña
-    # repos_to_analyze = filtered_repos[:50]
+    repos_to_analyze = filtered_repos[:10]
     # Para escanear TODOS los repositorios filtrados, descomenta la siguiente línea y comenta la anterior:
-    repos_to_analyze = filtered_repos
+    # repos_to_analyze = filtered_repos
     print(f"Analizando los primeros {len(repos_to_analyze)} repositorios de {len(filtered_repos)} filtrados.")
     
     if repos_to_analyze:
